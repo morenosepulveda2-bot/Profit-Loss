@@ -1,0 +1,7 @@
+date,amount,category_id,payment_method,description
+2024-01-15,150.50,OBTENER_ID_DE_CATEGORIA,Efectivo,Venta de productos alimenticios
+2024-01-16,200.00,OBTENER_ID_DE_CATEGORIA,Tarjeta,Servicio de consultoría
+2024-01-17,75.25,OBTENER_ID_DE_CATEGORIA,Transferencia,Venta online de productos
+2024-01-18,320.00,OBTENER_ID_DE_CATEGORIA,Tarjeta,Venta de servicios profesionales
+2024-01-19,45.50,OBTENER_ID_DE_CATEGORIA,Efectivo,Propina del cliente
+2024-01-20,180.00,OBTENER_ID_DE_CATEGORIA,Transferencia,Venta de productos varios
