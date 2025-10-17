@@ -117,10 +117,13 @@ class User(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     username: str
     email: EmailStr
-    hashed_password: str
+    hashed_password: Optional[str] = None  # Optional for invited users
     role: str = UserRole.SELLER.value  # Default role
     custom_permissions: Optional[List[str]] = None  # Override role permissions if needed
     language: str = "en"  # Default language: English
+    is_active: bool = False  # False until user sets password
+    activation_token: Optional[str] = None  # Token for password setup
+    activation_token_expires: Optional[str] = None  # Token expiration
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 class UserCreate(BaseModel):
@@ -130,11 +133,22 @@ class UserCreate(BaseModel):
     role: Optional[str] = UserRole.SELLER.value
     language: Optional[str] = "en"
 
+class UserInvite(BaseModel):
+    username: str
+    email: EmailStr
+    role: str = UserRole.SELLER.value
+    custom_permissions: Optional[List[str]] = None
+    language: str = "en"
+
 class UserUpdate(BaseModel):
     username: Optional[str] = None
     role: Optional[str] = None
     custom_permissions: Optional[List[str]] = None
     language: Optional[str] = None
+
+class SetPasswordRequest(BaseModel):
+    token: str
+    password: str
 
 class UserLogin(BaseModel):
     email: EmailStr
