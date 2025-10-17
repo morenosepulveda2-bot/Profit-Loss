@@ -240,7 +240,7 @@ export default function BankReconciliationPage() {
   const handleOpenValidateDialog = (transaction) => {
     setSelectedTransaction(transaction);
     setValidationType(transaction.type);
-    setValidationCategoryId(transaction.category_id || '');
+    setValidationCategoryId(transaction.category_id || 'none');
     setValidateDialogOpen(true);
   };
 
