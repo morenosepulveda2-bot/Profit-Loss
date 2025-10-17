@@ -678,6 +678,12 @@ class ProfitLossAPITester:
         print("🚀 Starting Profit & Loss API Tests...")
         print(f"Testing against: {self.base_url}")
         
+        # Test COGS calculation with existing user first (main focus)
+        print("\n" + "="*60)
+        print("🎯 PRIORITY: Testing COGS Calculation Fix")
+        print("="*60)
+        self.test_cogs_calculation_with_existing_user()
+        
         # Authentication tests
         if not self.test_user_registration():
             print("❌ Registration failed, stopping tests")
@@ -694,6 +700,14 @@ class ProfitLossAPITester:
         self.test_get_categories()
         self.test_create_custom_category()
         self.test_update_custom_category()
+        
+        # COGS-specific tests
+        print("\n" + "="*60)
+        print("🧮 COGS-Specific Tests")
+        print("="*60)
+        self.test_cogs_categories()
+        self.test_debug_cogs_endpoint()
+        self.test_create_cogs_expense()
         
         # Sales tests
         self.test_create_sale()
