@@ -78,10 +78,26 @@ export const AuthProvider = ({ children }) => {
   };
 
   const hasPermission = (permission) => {
+    // If user is admin, allow all permissions
+    if (user?.role === 'admin') {
+      return true;
+    }
+    // If permissions array is empty and user exists, allow access (backward compatibility)
+    if (user && permissions.length === 0) {
+      return true;
+    }
     return permissions.includes(permission);
   };
 
   const hasAnyPermission = (permissionList) => {
+    // If user is admin, allow all permissions
+    if (user?.role === 'admin') {
+      return true;
+    }
+    // If permissions array is empty and user exists, allow access (backward compatibility)
+    if (user && permissions.length === 0) {
+      return true;
+    }
     return permissionList.some(permission => permissions.includes(permission));
   };
 
