@@ -663,9 +663,9 @@ export default function BankReconciliationPage() {
                     <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Descripción</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Tipo</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Monto</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Cheque #</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Categoría</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Estado</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Match Manual</th>
+                    <th className="px-6 py-4 text-right text-sm font-semibold text-slate-900">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
