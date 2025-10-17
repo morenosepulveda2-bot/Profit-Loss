@@ -154,15 +154,23 @@ backend:
 frontend:
   - task: "Dashboard displays COGS correctly"
     implemented: true
-    working: "unknown"
+    working: true
     file: "/app/frontend/src/pages/DashboardPage.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "unknown"
         agent: "main"
         comment: "No frontend changes needed. Frontend correctly displays total_cogs from backend API."
+      - working: true
+        agent: "testing"
+        comment: |
+          Frontend integration confirmed working. The dashboard correctly displays COGS data from backend:
+          - total_cogs value is properly received and displayed
+          - COGS percentage calculation is shown correctly
+          - No frontend changes were needed as the issue was purely backend-related
+          - Frontend properly consumes the fixed backend API responses
 
 metadata:
   created_by: "main_agent"
