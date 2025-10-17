@@ -23,7 +23,7 @@ export default function BankReconciliationPage() {
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [statementBalance, setStatementBalance] = useState('');
   const [validationType, setValidationType] = useState('debit');
-  const [validationCategoryId, setValidationCategoryId] = useState('');
+  const [validationCategoryId, setValidationCategoryId] = useState('none');
   
   const [checkFormData, setCheckFormData] = useState({
     check_number: '',
