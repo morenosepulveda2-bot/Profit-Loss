@@ -13,12 +13,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 export default function BankReconciliationPage() {
   const [checks, setChecks] = useState([]);
   const [bankTransactions, setBankTransactions] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [reconciliationReport, setReconciliationReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [checkDialogOpen, setCheckDialogOpen] = useState(false);
   const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [validateDialogOpen, setValidateDialogOpen] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [statementBalance, setStatementBalance] = useState('');
+  const [validationType, setValidationType] = useState('debit');
+  const [validationCategoryId, setValidationCategoryId] = useState('');
   
   const [checkFormData, setCheckFormData] = useState({
     check_number: '',
