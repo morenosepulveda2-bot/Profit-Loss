@@ -158,11 +158,11 @@ export default function DashboardPage() {
           </div>
           
           <div className="mt-4 p-4 bg-white rounded-lg border border-orange-200">
-            <p className="text-sm font-semibold text-slate-900 mb-2">Fórmula de COGS:</p>
+            <p className="text-sm font-semibold text-slate-900 mb-2">Fórmula del Ratio:</p>
             <div className="space-y-1 text-sm text-slate-700">
-              <p>• <span className="font-medium">% COGS</span> = (Costo de Ventas ÷ Ventas Totales) × 100</p>
-              <p>• <span className="font-medium">% COGS</span> = (${summary.total_cogs.toFixed(2)} ÷ ${summary.total_income.toFixed(2)}) × 100 = <span className="font-bold text-orange-600">{summary.cogs_percentage.toFixed(2)}%</span></p>
-              <p className="mt-2 text-xs text-slate-500">💡 Un COGS más bajo indica mejor eficiencia en costos de producción/venta</p>
+              <p>• <span className="font-medium">% COGS</span> = (Ventas Totales ÷ Costo de Ventas) × 100</p>
+              <p>• <span className="font-medium">% COGS</span> = (${summary.total_income.toFixed(2)} ÷ ${summary.total_cogs.toFixed(2)}) × 100 = <span className="font-bold text-orange-600">{summary.cogs_percentage.toFixed(2)}%</span></p>
+              <p className="mt-2 text-xs text-slate-500">💡 Un ratio más alto indica que generas más ventas por cada dólar gastado en COGS</p>
             </div>
           </div>
         </div>
