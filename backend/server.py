@@ -547,14 +547,38 @@ async def get_dashboard_summary(
     sales = await db.sales.find(query, {"_id": 0}).to_list(10000)
     expenses = await db.expenses.find(query, {"_id": 0}).to_list(10000)
     
+    # Get validated bank transactions with categories
+    bank_query = {
+        "user_id": current_user["id"],
+        "validated": True,
+        "category_id": {"$ne": None, "$exists": True}
+    }
+    if start_date and end_date:
+        bank_query["date"] = {"$gte": start_date, "$lte": end_date}
+    
+    bank_transactions = await db.bank_transactions.find(bank_query, {"_id": 0}).to_list(10000)
+    
     # Get categories for mapping
     categories = await db.categories.find({"user_id": current_user["id"]}, {"_id": 0}).to_list(1000)
     cat_map = {cat["id"]: cat["name"] for cat in categories}
     cogs_categories = {cat["id"] for cat in categories if cat.get("is_cogs", False)}
     
-    # Calculate totals
+    # Calculate totals including bank transactions
     total_income = sum(sale["amount"] for sale in sales)
+    # Add credit bank transactions to income
+    total_income += sum(
+        trans["amount"] 
+        for trans in bank_transactions 
+        if trans["type"] == "credit"
+    )
+    
     total_expenses = sum(expense["amount"] for expense in expenses)
+    # Add debit bank transactions to expenses
+    total_expenses += sum(
+        trans["amount"] 
+        for trans in bank_transactions 
+        if trans["type"] == "debit"
+    )
     
     # Calculate COGS
     total_cogs = sum(
