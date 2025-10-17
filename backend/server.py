@@ -209,6 +209,64 @@ class ExpenseCreate(BaseModel):
     category_id: str
     description: Optional[str] = None
 
+
+
+class PurchaseOrderStatus(str, Enum):
+    DRAFT = "draft"  # Borrador
+    PENDING = "pending"  # Pendiente de pago
+    PARTIALLY_PAID = "partially_paid"  # Parcialmente pagado
+    PAID = "paid"  # Pagado completamente
+    CANCELLED = "cancelled"  # Cancelado
+
+class PurchaseOrderItem(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    description: str
+    quantity: float
+    unit_price: float
+    total: float
+
+class PurchaseOrder(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    po_number: str  # Número de orden
+    supplier: str  # Proveedor
+    date_created: str
+    date_expected: Optional[str] = None  # Fecha esperada de entrega
+    items: List[PurchaseOrderItem] = []
+    subtotal: float
+    tax: float = 0
+    total: float
+    status: str = PurchaseOrderStatus.PENDING
+    notes: Optional[str] = None
+    # Conciliaciones
+    linked_expenses: List[str] = []  # IDs de expenses relacionados
+    linked_transactions: List[str] = []  # IDs de bank transactions relacionados
+    linked_checks: List[str] = []  # IDs de checks relacionados
+    amount_paid: float = 0  # Total pagado
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class PurchaseOrderCreate(BaseModel):
+    po_number: str
+    supplier: str
+    date_created: str
+    date_expected: Optional[str] = None
+    items: List[PurchaseOrderItem]
+    tax: float = 0
+    notes: Optional[str] = None
+
+class PurchaseOrderUpdate(BaseModel):
+    supplier: Optional[str] = None
+    date_expected: Optional[str] = None
+    items: Optional[List[PurchaseOrderItem]] = None
+    tax: Optional[float] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+
+class LinkToPurchaseOrder(BaseModel):
+    purchase_order_id: str
+    amount: Optional[float] = None  # Monto a aplicar (si es pago parcial)
+
 class DashboardSummary(BaseModel):
     total_income: float
     total_expenses: float
