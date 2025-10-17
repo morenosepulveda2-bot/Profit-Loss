@@ -673,6 +673,465 @@ class ProfitLossAPITester:
         
         return False
 
+    # ============ RBAC and Multi-Language Tests ============
+    
+    def test_user_profile_permissions(self):
+        """Test GET /api/profile/permissions endpoint"""
+        print("\n🔍 Testing User Profile & Permissions...")
+        
+        response = self.make_request('GET', 'profile/permissions')
+        
+        if response and response.status_code == 200:
+            profile = response.json()
+            required_fields = ['user_id', 'username', 'email', 'role', 'language', 'permissions']
+            
+            if all(field in profile for field in required_fields):
+                role = profile.get('role', 'unknown')
+                permissions_count = len(profile.get('permissions', []))
+                language = profile.get('language', 'unknown')
+                
+                self.log_result("User Profile & Permissions", True, 
+                    f"Role: {role}, Language: {language}, Permissions: {permissions_count}")
+                return profile
+            else:
+                missing_fields = [field for field in required_fields if field not in profile]
+                self.log_result("User Profile & Permissions", False, f"Missing fields: {missing_fields}")
+        else:
+            error_msg = response.json().get('detail', 'Unknown error') if response else 'No response'
+            self.log_result("User Profile & Permissions", False, f"Status: {response.status_code if response else 'None'}, Error: {error_msg}")
+        
+        return None
+
+    def test_language_management(self):
+        """Test PUT /api/profile/language endpoint"""
+        print("\n🔍 Testing Language Management...")
+        
+        # Test valid language change to Spanish
+        response = self.make_request('PUT', 'profile/language?language=es')
+        
+        if response and response.status_code == 200:
+            result = response.json()
+            if result.get('language') == 'es':
+                self.log_result("Language Change to Spanish", True, "Language updated to Spanish")
+                
+                # Verify the change by checking profile
+                profile_response = self.make_request('GET', 'profile/permissions')
+                if profile_response and profile_response.status_code == 200:
+                    profile = profile_response.json()
+                    if profile.get('language') == 'es':
+                        self.log_result("Language Verification", True, "Language change verified in profile")
+                    else:
+                        self.log_result("Language Verification", False, f"Profile shows language: {profile.get('language')}")
+                
+                # Change back to English
+                response = self.make_request('PUT', 'profile/language?language=en')
+                if response and response.status_code == 200:
+                    self.log_result("Language Change to English", True, "Language updated back to English")
+                else:
+                    self.log_result("Language Change to English", False, "Failed to change back to English")
+                
+                return True
+            else:
+                self.log_result("Language Change to Spanish", False, f"Expected 'es', got {result.get('language')}")
+        else:
+            error_msg = response.json().get('detail', 'Unknown error') if response else 'No response'
+            self.log_result("Language Change to Spanish", False, f"Status: {response.status_code if response else 'None'}, Error: {error_msg}")
+        
+        # Test invalid language
+        invalid_response = self.make_request('PUT', 'profile/language?language=fr')
+        if invalid_response and invalid_response.status_code == 400:
+            self.log_result("Invalid Language Rejection", True, "Correctly rejected invalid language 'fr'")
+        else:
+            self.log_result("Invalid Language Rejection", False, f"Expected 400, got {invalid_response.status_code if invalid_response else 'None'}")
+        
+        return False
+
+    def test_create_admin_user(self):
+        """Create an admin user for testing admin endpoints"""
+        print("\n🔍 Creating Admin User for Testing...")
+        
+        admin_email = f"admin_test_{datetime.now().strftime('%H%M%S')}@test.com"
+        admin_password = "AdminPass123!"
+        admin_username = f"AdminUser_{datetime.now().strftime('%H%M%S')}"
+        
+        response = self.make_request('POST', 'auth/register', {
+            "username": admin_username,
+            "email": admin_email,
+            "password": admin_password,
+            "role": "admin"
+        })
+        
+        if response and response.status_code == 200:
+            data = response.json()
+            if 'access_token' in data:
+                admin_token = data['access_token']
+                admin_user_data = data['user']
+                
+                self.log_result("Create Admin User", True, f"Admin user created: {admin_user_data['username']}")
+                return {
+                    'token': admin_token,
+                    'user_data': admin_user_data,
+                    'email': admin_email,
+                    'password': admin_password
+                }
+            else:
+                self.log_result("Create Admin User", False, "Missing token in response")
+        else:
+            error_msg = response.json().get('detail', 'Unknown error') if response else 'No response'
+            self.log_result("Create Admin User", False, f"Status: {response.status_code if response else 'None'}, Error: {error_msg}")
+        
+        return None
+
+    def test_admin_user_management(self):
+        """Test admin-only user management endpoints"""
+        print("\n🔍 Testing Admin User Management...")
+        
+        # Create admin user
+        admin_info = self.test_create_admin_user()
+        if not admin_info:
+            self.log_result("Admin User Management", False, "Failed to create admin user")
+            return False
+        
+        # Store original token
+        original_token = self.token
+        original_user = self.user_data
+        
+        # Switch to admin token
+        self.token = admin_info['token']
+        
+        success_count = 0
+        total_tests = 0
+        
+        # Test GET /api/users
+        total_tests += 1
+        response = self.make_request('GET', 'users')
+        if response and response.status_code == 200:
+            users = response.json()
+            if isinstance(users, list) and len(users) >= 2:  # At least admin and regular user
+                success_count += 1
+                print(f"  ✅ GET /api/users - Found {len(users)} users")
+                
+                # Find a non-admin user for testing
+                test_user = None
+                for user in users:
+                    if user.get('role') != 'admin' and user.get('id') != admin_info['user_data']['id']:
+                        test_user = user
+                        break
+                
+                if test_user:
+                    # Test GET /api/users/{user_id}
+                    total_tests += 1
+                    user_response = self.make_request('GET', f'users/{test_user["id"]}')
+                    if user_response and user_response.status_code == 200:
+                        user_detail = user_response.json()
+                        if 'permissions' in user_detail:
+                            success_count += 1
+                            print(f"  ✅ GET /api/users/{test_user['id']} - User details retrieved")
+                            
+                            # Test PUT /api/users/{user_id} - Update user role
+                            total_tests += 1
+                            update_response = self.make_request('PUT', f'users/{test_user["id"]}', {
+                                "role": "manager",
+                                "language": "es"
+                            })
+                            if update_response and update_response.status_code == 200:
+                                success_count += 1
+                                print(f"  ✅ PUT /api/users/{test_user['id']} - User updated")
+                                
+                                # Verify the update
+                                verify_response = self.make_request('GET', f'users/{test_user["id"]}')
+                                if verify_response and verify_response.status_code == 200:
+                                    updated_user = verify_response.json()
+                                    if updated_user.get('role') == 'manager' and updated_user.get('language') == 'es':
+                                        print(f"  ✅ User update verified - Role: {updated_user.get('role')}, Language: {updated_user.get('language')}")
+                                    else:
+                                        print(f"  ⚠️ User update not fully verified")
+                            else:
+                                print(f"  ❌ PUT /api/users/{test_user['id']} failed")
+                        else:
+                            print(f"  ❌ GET /api/users/{test_user['id']} - Missing permissions field")
+                    else:
+                        print(f"  ❌ GET /api/users/{test_user['id']} failed")
+            else:
+                print(f"  ❌ GET /api/users - Expected list with >= 2 users, got {len(users) if isinstance(users, list) else 'not a list'}")
+        else:
+            print(f"  ❌ GET /api/users failed")
+        
+        # Restore original token
+        self.token = original_token
+        self.user_data = original_user
+        
+        if success_count >= 3:  # At least basic user management working
+            self.log_result("Admin User Management", True, f"{success_count}/{total_tests} admin operations successful")
+            return True
+        else:
+            self.log_result("Admin User Management", False, f"Only {success_count}/{total_tests} admin operations successful")
+        
+        return False
+
+    def test_roles_info(self):
+        """Test GET /api/roles endpoint (Admin only)"""
+        print("\n🔍 Testing Roles Info...")
+        
+        # Create admin user
+        admin_info = self.test_create_admin_user()
+        if not admin_info:
+            self.log_result("Roles Info", False, "Failed to create admin user")
+            return False
+        
+        # Store original token
+        original_token = self.token
+        
+        # Switch to admin token
+        self.token = admin_info['token']
+        
+        response = self.make_request('GET', 'roles')
+        
+        if response and response.status_code == 200:
+            roles_data = response.json()
+            if 'roles' in roles_data:
+                roles = roles_data['roles']
+                expected_roles = ['admin', 'manager', 'accountant', 'seller']
+                
+                role_values = [role.get('value') for role in roles]
+                if all(expected_role in role_values for expected_role in expected_roles):
+                    # Check if each role has permissions
+                    roles_with_permissions = sum(1 for role in roles if 'permissions' in role and len(role['permissions']) > 0)
+                    
+                    self.log_result("Roles Info", True, 
+                        f"Found {len(roles)} roles, {roles_with_permissions} with permissions")
+                    
+                    # Restore original token
+                    self.token = original_token
+                    return roles_data
+                else:
+                    missing_roles = [role for role in expected_roles if role not in role_values]
+                    self.log_result("Roles Info", False, f"Missing roles: {missing_roles}")
+            else:
+                self.log_result("Roles Info", False, "Missing 'roles' field in response")
+        else:
+            error_msg = response.json().get('detail', 'Unknown error') if response else 'No response'
+            self.log_result("Roles Info", False, f"Status: {response.status_code if response else 'None'}, Error: {error_msg}")
+        
+        # Restore original token
+        self.token = original_token
+        return None
+
+    def test_permissions_info(self):
+        """Test GET /api/permissions endpoint (Admin only)"""
+        print("\n🔍 Testing Permissions Info...")
+        
+        # Create admin user
+        admin_info = self.test_create_admin_user()
+        if not admin_info:
+            self.log_result("Permissions Info", False, "Failed to create admin user")
+            return False
+        
+        # Store original token
+        original_token = self.token
+        
+        # Switch to admin token
+        self.token = admin_info['token']
+        
+        response = self.make_request('GET', 'permissions')
+        
+        if response and response.status_code == 200:
+            permissions_data = response.json()
+            if 'permissions' in permissions_data:
+                permissions = permissions_data['permissions']
+                
+                # Check for expected permissions (should be 16 total)
+                expected_min_permissions = 10  # At least 10 permissions
+                if len(permissions) >= expected_min_permissions:
+                    permission_values = [perm.get('value') for perm in permissions]
+                    
+                    # Check for some key permissions
+                    key_permissions = ['view_dashboard', 'manage_users', 'view_sales', 'create_expenses']
+                    found_key_permissions = sum(1 for perm in key_permissions if perm in permission_values)
+                    
+                    self.log_result("Permissions Info", True, 
+                        f"Found {len(permissions)} permissions, {found_key_permissions}/{len(key_permissions)} key permissions present")
+                    
+                    # Restore original token
+                    self.token = original_token
+                    return permissions_data
+                else:
+                    self.log_result("Permissions Info", False, f"Expected >= {expected_min_permissions} permissions, got {len(permissions)}")
+            else:
+                self.log_result("Permissions Info", False, "Missing 'permissions' field in response")
+        else:
+            error_msg = response.json().get('detail', 'Unknown error') if response else 'No response'
+            self.log_result("Permissions Info", False, f"Status: {response.status_code if response else 'None'}, Error: {error_msg}")
+        
+        # Restore original token
+        self.token = original_token
+        return None
+
+    def test_permission_based_access_control(self):
+        """Test that endpoints require correct permissions"""
+        print("\n🔍 Testing Permission-based Access Control...")
+        
+        success_count = 0
+        total_tests = 0
+        
+        # Test 1: Non-admin user trying to access admin endpoints
+        total_tests += 1
+        response = self.make_request('GET', 'users')  # Admin only endpoint
+        if response and response.status_code == 403:
+            success_count += 1
+            print(f"  ✅ Non-admin correctly denied access to GET /api/users")
+        else:
+            print(f"  ❌ Non-admin should be denied access to GET /api/users, got status: {response.status_code if response else 'None'}")
+        
+        total_tests += 1
+        response = self.make_request('GET', 'roles')  # Admin only endpoint
+        if response and response.status_code == 403:
+            success_count += 1
+            print(f"  ✅ Non-admin correctly denied access to GET /api/roles")
+        else:
+            print(f"  ❌ Non-admin should be denied access to GET /api/roles, got status: {response.status_code if response else 'None'}")
+        
+        total_tests += 1
+        response = self.make_request('GET', 'permissions')  # Admin only endpoint
+        if response and response.status_code == 403:
+            success_count += 1
+            print(f"  ✅ Non-admin correctly denied access to GET /api/permissions")
+        else:
+            print(f"  ❌ Non-admin should be denied access to GET /api/permissions, got status: {response.status_code if response else 'None'}")
+        
+        # Test 2: Create different role users and test their access
+        # Create a seller user (default role)
+        seller_email = f"seller_test_{datetime.now().strftime('%H%M%S')}@test.com"
+        seller_response = self.make_request('POST', 'auth/register', {
+            "username": f"SellerUser_{datetime.now().strftime('%H%M%S')}",
+            "email": seller_email,
+            "password": "SellerPass123!",
+            "role": "seller"
+        })
+        
+        if seller_response and seller_response.status_code == 200:
+            seller_data = seller_response.json()
+            seller_token = seller_data['access_token']
+            
+            # Store original token
+            original_token = self.token
+            
+            # Switch to seller token
+            self.token = seller_token
+            
+            # Test seller permissions
+            total_tests += 1
+            profile_response = self.make_request('GET', 'profile/permissions')
+            if profile_response and profile_response.status_code == 200:
+                profile = profile_response.json()
+                seller_permissions = profile.get('permissions', [])
+                
+                # Seller should have limited permissions
+                expected_seller_permissions = ['view_dashboard', 'view_sales', 'create_sales', 'edit_sales']
+                has_expected_permissions = any(perm in seller_permissions for perm in expected_seller_permissions)
+                
+                if has_expected_permissions and 'manage_users' not in seller_permissions:
+                    success_count += 1
+                    print(f"  ✅ Seller has correct limited permissions: {len(seller_permissions)} permissions")
+                else:
+                    print(f"  ❌ Seller permissions incorrect: {seller_permissions}")
+            else:
+                print(f"  ❌ Failed to get seller profile permissions")
+            
+            # Restore original token
+            self.token = original_token
+        
+        if success_count >= 3:  # At least basic access control working
+            self.log_result("Permission-based Access Control", True, f"{success_count}/{total_tests} access control tests passed")
+            return True
+        else:
+            self.log_result("Permission-based Access Control", False, f"Only {success_count}/{total_tests} access control tests passed")
+        
+        return False
+
+    def test_role_permissions_mapping(self):
+        """Test that role permissions are correctly mapped"""
+        print("\n🔍 Testing Role Permissions Mapping...")
+        
+        # Test different roles and their expected permissions
+        test_roles = [
+            {
+                'role': 'seller',
+                'expected_permissions': ['view_dashboard', 'view_sales', 'create_sales', 'edit_sales'],
+                'forbidden_permissions': ['manage_users', 'manage_categories', 'delete_expenses']
+            },
+            {
+                'role': 'accountant', 
+                'expected_permissions': ['view_dashboard', 'view_expenses', 'create_expenses', 'view_reports'],
+                'forbidden_permissions': ['manage_users', 'delete_sales']
+            },
+            {
+                'role': 'manager',
+                'expected_permissions': ['view_dashboard', 'view_sales', 'create_sales', 'manage_categories', 'view_reports'],
+                'forbidden_permissions': ['manage_users']
+            }
+        ]
+        
+        success_count = 0
+        total_tests = len(test_roles)
+        
+        for role_test in test_roles:
+            role = role_test['role']
+            
+            # Create user with specific role
+            user_email = f"{role}_test_{datetime.now().strftime('%H%M%S')}@test.com"
+            user_response = self.make_request('POST', 'auth/register', {
+                "username": f"{role.title()}User_{datetime.now().strftime('%H%M%S')}",
+                "email": user_email,
+                "password": f"{role.title()}Pass123!",
+                "role": role
+            })
+            
+            if user_response and user_response.status_code == 200:
+                user_data = user_response.json()
+                user_token = user_data['access_token']
+                
+                # Store original token
+                original_token = self.token
+                
+                # Switch to role-specific token
+                self.token = user_token
+                
+                # Get user permissions
+                profile_response = self.make_request('GET', 'profile/permissions')
+                if profile_response and profile_response.status_code == 200:
+                    profile = profile_response.json()
+                    user_permissions = profile.get('permissions', [])
+                    
+                    # Check expected permissions
+                    has_expected = all(perm in user_permissions for perm in role_test['expected_permissions'])
+                    
+                    # Check forbidden permissions are not present
+                    has_forbidden = any(perm in user_permissions for perm in role_test['forbidden_permissions'])
+                    
+                    if has_expected and not has_forbidden:
+                        success_count += 1
+                        print(f"  ✅ {role.title()} role permissions correct: {len(user_permissions)} total permissions")
+                    else:
+                        missing_expected = [perm for perm in role_test['expected_permissions'] if perm not in user_permissions]
+                        present_forbidden = [perm for perm in role_test['forbidden_permissions'] if perm in user_permissions]
+                        print(f"  ❌ {role.title()} role permissions incorrect - Missing: {missing_expected}, Forbidden present: {present_forbidden}")
+                else:
+                    print(f"  ❌ Failed to get {role} profile permissions")
+                
+                # Restore original token
+                self.token = original_token
+            else:
+                print(f"  ❌ Failed to create {role} user")
+        
+        if success_count == total_tests:
+            self.log_result("Role Permissions Mapping", True, f"All {total_tests} role permission mappings correct")
+            return True
+        else:
+            self.log_result("Role Permissions Mapping", False, f"Only {success_count}/{total_tests} role permission mappings correct")
+        
+        return False
+
     def run_all_tests(self):
         """Run all tests in sequence"""
         print("🚀 Starting Profit & Loss API Tests...")
