@@ -580,11 +580,17 @@ async def get_dashboard_summary(
         if trans["type"] == "debit"
     )
     
-    # Calculate COGS
+    # Calculate COGS (from expenses and bank transactions)
     total_cogs = sum(
         expense["amount"] 
         for expense in expenses 
         if expense["category_id"] in cogs_categories
+    )
+    # Add COGS from bank transactions
+    total_cogs += sum(
+        trans["amount"]
+        for trans in bank_transactions
+        if trans["type"] == "debit" and trans.get("category_id") in cogs_categories
     )
     
     # Calculate metrics
