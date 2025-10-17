@@ -48,7 +48,7 @@ export default function CategoriesPage() {
       }
       setDialogOpen(false);
       setEditingCategory(null);
-      setFormData({ name: '', type: 'income' });
+      setFormData({ name: '', type: 'income', is_cogs: false });
       fetchCategories();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Error al guardar categoría');
