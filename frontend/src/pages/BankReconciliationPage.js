@@ -394,7 +394,7 @@ export default function BankReconciliationPage() {
         {/* Cheques Tab */}
         <TabsContent value="checks" className="space-y-6">
           <div className="flex justify-between items-center">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-4 flex-1">
               <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
                 <p className="text-sm text-yellow-700">Cheques Pendientes</p>
                 <p className="text-2xl font-bold text-yellow-900">{pendingChecks.length}</p>
@@ -410,6 +410,16 @@ export default function BankReconciliationPage() {
                 </p>
               </div>
             </div>
+            
+            <div className="flex gap-2 ml-4">
+              <Button 
+                onClick={handleDownloadInTransitReport}
+                className="bg-purple-600 hover:bg-purple-700"
+                data-testid="download-transit-report"
+              >
+                <FileText size={16} className="mr-2" />
+                Reporte de Cheques en Tránsito
+              </Button>
 
             <Dialog open={checkDialogOpen} onOpenChange={setCheckDialogOpen}>
               <DialogTrigger asChild>
