@@ -1087,7 +1087,8 @@ async def upload_bank_statement(
                     # Pattern for Wells Fargo style: Date [CheckNum] Description Amount Amount Balance
                     # Example: 9/15 Zelle to Camargo Elena on 09/12 Ref # Wfct0Z8Q8Z29 550.00
                     # Example: 9/10 Purchase authorized on 09/09 Paypal *Streamline 57.00
-                    wells_fargo_match = re.search(r'^(\d{1,2}/\d{1,2})\s+(?:(\d+)\s+)?(.+?)\s+([\d,]+\.?\d{2})\s*$', line)
+                    # Allow amounts with 0-2 decimal places
+                    wells_fargo_match = re.search(r'^(\d{1,2}/\d{1,2})\s+(?:(\d+)\s+)?(.+?)\s+([\d,]+(?:\.\d{1,2})?)\s*$', line)
                     
                     if wells_fargo_match:
                         date_short, check_num, description, amount_str = wells_fargo_match.groups()
