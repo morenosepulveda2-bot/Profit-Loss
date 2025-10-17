@@ -110,11 +110,11 @@ user_problem_statement: |
 backend:
   - task: "Fix COGS calculation to include all COGS categories"
     implemented: true
-    working: "unknown"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "unknown"
         agent: "main"
@@ -123,6 +123,33 @@ backend:
           The category was present but not properly flagged, causing it to be excluded from the 
           total_cogs calculation while still appearing in the expense breakdown.
           Also improved the debug endpoint to include bank transaction COGS analysis.
+      - working: true
+        agent: "testing"
+        comment: |
+          COGS calculation fix is working correctly. Comprehensive testing confirmed:
+          
+          1. ✅ Dashboard Summary API (/api/dashboard/summary):
+             - total_cogs field properly includes expenses from categories with is_cogs=True
+             - cogs_percentage calculated correctly as (total_cogs / total_income) × 100
+             - gross_profit calculation working (total_income - total_cogs)
+          
+          2. ✅ Debug COGS Endpoint (/api/debug/cogs):
+             - Shows categories with is_cogs=True in cogs_categories array
+             - Includes COGS expenses in total_cogs_from_expenses
+             - Supports both expense-based and bank-transaction-based COGS calculations
+          
+          3. ✅ Categories API (/api/categories):
+             - Categories can be created with is_cogs=True flag
+             - COGS categories properly flagged and returned
+          
+          4. ✅ End-to-End COGS Flow:
+             - Created COGS category with is_cogs=True
+             - Added $500 COGS expense
+             - Dashboard showed total_cogs=$500, cogs_percentage=142.65%
+             - Debug endpoint confirmed 1 COGS category with correct totals
+          
+          The original issue was that test users didn't have COGS categories. The main agent's 
+          fix works perfectly - categories with is_cogs=True are properly included in COGS calculations.
 
 frontend:
   - task: "Dashboard displays COGS correctly"
