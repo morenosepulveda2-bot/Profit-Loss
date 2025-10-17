@@ -1022,19 +1022,37 @@ async def upload_bank_statement(
                                 continue
                             
                             # Parse amount
-                            amount_clean = amount_str.replace('$', '').replace(',', '').replace(' ', '')
+                            amount_clean = amount_str.replace('$', '').replace(',', '').replace(' ', '').strip()
                             
                             # Determine if debit or credit
-                            if '-' in amount_clean or '(' in amount_str:
+                            is_negative = '-' in amount_clean or '(' in amount_str
+                            
+                            # Keywords that indicate credit (money in)
+                            credit_keywords = ['DEPOSIT', 'CREDIT', 'DEPOSITO', 'ABONO', 'INGRESO', 'PAYMENT RECEIVED', 'TRANSFER IN']
+                            
+                            # Keywords that indicate debit (money out)
+                            debit_keywords = ['WITHDRAWAL', 'DEBIT', 'RETIRO', 'CARGO', 'CHECK', 'CHEQUE', 'FEE', 'PAYMENT', 'PURCHASE', 'ATM']
+                            
+                            # Check description for hints
+                            desc_upper = description.upper()
+                            has_credit_keyword = any(word in desc_upper for word in credit_keywords)
+                            has_debit_keyword = any(word in desc_upper for word in debit_keywords)
+                            
+                            # Determine type
+                            if is_negative or has_debit_keyword:
                                 trans_type = "debit"
-                                amount = abs(float(amount_clean.replace('-', '').replace('(', '').replace(')', '')))
+                            elif has_credit_keyword:
+                                trans_type = "credit"
                             else:
-                                # Check if it's explicitly marked as credit/debit in description
-                                if any(word in description.upper() for word in ['DEPOSIT', 'CREDIT', 'DEPOSITO']):
-                                    trans_type = "credit"
-                                else:
-                                    trans_type = "debit"
-                                amount = abs(float(amount_clean))
+                                # Default: assume positive amounts are debits unless otherwise indicated
+                                # (most transactions in statements are debits)
+                                trans_type = "debit"
+                            
+                            try:
+                                amount = abs(float(amount_clean.replace('-', '').replace('(', '').replace(')', '')))
+                            except ValueError:
+                                logger.warning(f"Could not parse amount: {amount_str}")
+                                continue
                             
                             # Extract check number if present
                             check_patterns = [
