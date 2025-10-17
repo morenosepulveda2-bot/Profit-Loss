@@ -406,6 +406,185 @@ class ProfitLossAPITester:
         
         return False
 
+    def test_cogs_categories(self):
+        """Test COGS categories are properly flagged"""
+        print("\n🔍 Testing COGS Categories...")
+        
+        response = self.make_request('GET', 'categories')
+        
+        if response and response.status_code == 200:
+            categories = response.json()
+            cogs_categories = [cat for cat in categories if cat.get('is_cogs', False)]
+            
+            if len(cogs_categories) > 0:
+                cogs_names = [cat['name'] for cat in cogs_categories]
+                self.log_result("COGS Categories", True, 
+                    f"Found {len(cogs_categories)} COGS categories: {', '.join(cogs_names)}")
+                return cogs_categories
+            else:
+                self.log_result("COGS Categories", False, "No COGS categories found with is_cogs=True")
+        else:
+            error_msg = response.json().get('detail', 'Unknown error') if response else 'No response'
+            self.log_result("COGS Categories", False, f"Status: {response.status_code if response else 'None'}, Error: {error_msg}")
+        
+        return []
+
+    def test_debug_cogs_endpoint(self):
+        """Test debug COGS endpoint"""
+        print("\n🔍 Testing Debug COGS Endpoint...")
+        
+        response = self.make_request('GET', 'debug/cogs')
+        
+        if response and response.status_code == 200:
+            debug_data = response.json()
+            required_fields = ['cogs_categories', 'total_cogs_from_expenses', 'total_cogs_from_bank', 'total_cogs']
+            
+            if all(field in debug_data for field in required_fields):
+                cogs_categories = debug_data.get('cogs_categories', [])
+                total_cogs = debug_data.get('total_cogs', 0)
+                
+                self.log_result("Debug COGS Endpoint", True, 
+                    f"COGS categories: {len(cogs_categories)}, Total COGS: ${total_cogs}")
+                return debug_data
+            else:
+                missing_fields = [field for field in required_fields if field not in debug_data]
+                self.log_result("Debug COGS Endpoint", False, f"Missing fields: {missing_fields}")
+        else:
+            error_msg = response.json().get('detail', 'Unknown error') if response else 'No response'
+            self.log_result("Debug COGS Endpoint", False, f"Status: {response.status_code if response else 'None'}, Error: {error_msg}")
+        
+        return False
+
+    def test_cogs_calculation_with_existing_user(self):
+        """Test COGS calculation with the existing user that has COGS data"""
+        print("\n🔍 Testing COGS Calculation with Existing User...")
+        
+        # Try to login with the test user mentioned in the review request
+        test_email = "test_user_200146@test.com"
+        test_password = "TestPass123!"  # Assuming standard test password
+        
+        response = self.make_request('POST', 'auth/login', {
+            "email": test_email,
+            "password": test_password
+        })
+        
+        if response and response.status_code == 200:
+            data = response.json()
+            old_token = self.token
+            self.token = data['access_token']
+            
+            # Test dashboard summary with existing user
+            summary_response = self.make_request('GET', 'dashboard/summary')
+            if summary_response and summary_response.status_code == 200:
+                summary = summary_response.json()
+                total_cogs = summary.get('total_cogs', 0)
+                cogs_percentage = summary.get('cogs_percentage', 0)
+                
+                if total_cogs > 0:
+                    self.log_result("COGS Calculation (Existing User)", True, 
+                        f"Total COGS: ${total_cogs}, COGS %: {cogs_percentage:.2f}%")
+                    
+                    # Test debug endpoint with existing user
+                    debug_response = self.make_request('GET', 'debug/cogs')
+                    if debug_response and debug_response.status_code == 200:
+                        debug_data = debug_response.json()
+                        cogs_categories = debug_data.get('cogs_categories', [])
+                        
+                        # Check if "COGS" category exists and has is_cogs=True
+                        cogs_category_found = any(cat.get('name') == 'COGS' and cat.get('is_cogs', False) 
+                                                for cat in cogs_categories)
+                        
+                        if cogs_category_found:
+                            self.log_result("COGS Category Fix Verification", True, 
+                                "COGS category found with is_cogs=True")
+                        else:
+                            self.log_result("COGS Category Fix Verification", False, 
+                                "COGS category not found or not properly flagged")
+                    
+                    # Restore original token
+                    self.token = old_token
+                    return True
+                else:
+                    self.log_result("COGS Calculation (Existing User)", False, 
+                        f"Total COGS is still ${total_cogs} (expected > 0)")
+            else:
+                self.log_result("COGS Calculation (Existing User)", False, 
+                    "Failed to get dashboard summary")
+            
+            # Restore original token
+            self.token = old_token
+        else:
+            self.log_result("COGS Calculation (Existing User)", False, 
+                f"Failed to login with test user {test_email}")
+        
+        return False
+
+    def test_create_cogs_expense(self):
+        """Test creating COGS expense and verify it's included in calculations"""
+        print("\n🔍 Testing Create COGS Expense...")
+        
+        # Get COGS categories
+        categories = self.test_get_categories()
+        cogs_categories = [cat for cat in categories if cat.get('is_cogs', False)]
+        
+        if not cogs_categories:
+            # Create a COGS category if none exists
+            response = self.make_request('POST', 'categories', {
+                "name": "Test COGS Category",
+                "type": "expense",
+                "is_cogs": True
+            })
+            
+            if response and response.status_code == 200:
+                cogs_category = response.json()
+                self.created_categories.append(cogs_category)
+                cogs_categories = [cogs_category]
+            else:
+                self.log_result("Create COGS Expense", False, "Failed to create COGS category")
+                return False
+        
+        # Get baseline dashboard summary
+        baseline_response = self.make_request('GET', 'dashboard/summary')
+        baseline_cogs = 0
+        if baseline_response and baseline_response.status_code == 200:
+            baseline_summary = baseline_response.json()
+            baseline_cogs = baseline_summary.get('total_cogs', 0)
+        
+        # Create COGS expense
+        cogs_amount = 100.00
+        response = self.make_request('POST', 'expenses', {
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "amount": cogs_amount,
+            "category_id": cogs_categories[0]["id"],
+            "description": "Test COGS expense"
+        })
+        
+        if response and response.status_code == 200:
+            expense = response.json()
+            self.created_expenses.append(expense)
+            
+            # Verify COGS is included in dashboard summary
+            updated_response = self.make_request('GET', 'dashboard/summary')
+            if updated_response and updated_response.status_code == 200:
+                updated_summary = updated_response.json()
+                updated_cogs = updated_summary.get('total_cogs', 0)
+                
+                expected_cogs = baseline_cogs + cogs_amount
+                if abs(updated_cogs - expected_cogs) < 0.01:  # Allow for floating point precision
+                    self.log_result("Create COGS Expense", True, 
+                        f"COGS expense properly included: ${baseline_cogs} + ${cogs_amount} = ${updated_cogs}")
+                    return True
+                else:
+                    self.log_result("Create COGS Expense", False, 
+                        f"COGS not properly calculated: expected ${expected_cogs}, got ${updated_cogs}")
+            else:
+                self.log_result("Create COGS Expense", False, "Failed to get updated dashboard summary")
+        else:
+            error_msg = response.json().get('detail', 'Unknown error') if response else 'No response'
+            self.log_result("Create COGS Expense", False, f"Status: {response.status_code if response else 'None'}, Error: {error_msg}")
+        
+        return False
+
     def test_csv_import(self):
         """Test CSV import functionality"""
         print("\n🔍 Testing CSV Import...")
