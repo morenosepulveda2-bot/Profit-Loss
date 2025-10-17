@@ -77,6 +77,7 @@ class Category(BaseModel):
     name: str
     type: str  # "income" or "expense"
     is_predefined: bool = False
+    is_cogs: bool = False  # True if this expense category is Cost of Goods Sold
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 class CategoryCreate(BaseModel):
