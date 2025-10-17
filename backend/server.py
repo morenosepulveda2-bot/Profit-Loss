@@ -326,6 +326,40 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     except jwt.JWTError:
         raise HTTPException(status_code=401, detail="Could not validate credentials")
 
+
+def get_user_permissions(user: dict) -> List[str]:
+    """Get all permissions for a user based on role and custom permissions"""
+    role = user.get("role", UserRole.SELLER.value)
+    
+    # If user has custom permissions, use those
+    if user.get("custom_permissions"):
+        return user["custom_permissions"]
+    
+    # Otherwise, use role-based permissions
+    return ROLE_PERMISSIONS.get(role, [])
+
+def check_permission(user: dict, required_permission: str) -> bool:
+    """Check if user has a specific permission"""
+    user_permissions = get_user_permissions(user)
+    return required_permission in user_permissions
+
+async def require_permission(permission: str):
+    """Dependency to require a specific permission"""
+    async def permission_checker(current_user: dict = Depends(get_current_user)):
+        if not check_permission(current_user, permission):
+            raise HTTPException(
+                status_code=403,
+                detail=f"Permission denied. Required permission: {permission}"
+            )
+        return current_user
+    return permission_checker
+
+async def require_admin(current_user: dict = Depends(get_current_user)):
+    """Dependency to require admin role"""
+    if current_user.get("role") != UserRole.ADMIN.value:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user
+
 async def initialize_predefined_categories(user_id: str):
     """Initialize predefined categories for new user"""
     predefined_income = [
