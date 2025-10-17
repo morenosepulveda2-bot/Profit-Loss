@@ -179,11 +179,13 @@ async def initialize_predefined_categories(user_id: str):
         "Propinas",
         "Otros Ingresos"
     ]
+    # (name, is_cogs)
     predefined_expenses = [
-        "Renta",
-        "Nómina",
-        "Inventario",
-        "Marketing",
+        ("Costo de Mercancía Vendida", True),  # COGS
+        ("Inventario/Productos", True),  # COGS
+        ("Renta", False),
+        ("Nómina", False),
+        ("Marketing", False),
         "Servicios Públicos",
         "Mantenimiento",
         "Otros Gastos"
@@ -191,11 +193,15 @@ async def initialize_predefined_categories(user_id: str):
     
     categories = []
     for name in predefined_income:
-        cat = Category(user_id=user_id, name=name, type="income", is_predefined=True)
+        cat = Category(user_id=user_id, name=name, type="income", is_predefined=True, is_cogs=False)
         categories.append(cat.model_dump())
     
-    for name in predefined_expenses:
-        cat = Category(user_id=user_id, name=name, type="expense", is_predefined=True)
+    for expense in predefined_expenses:
+        if isinstance(expense, tuple):
+            name, is_cogs = expense
+            cat = Category(user_id=user_id, name=name, type="expense", is_predefined=True, is_cogs=is_cogs)
+        else:
+            cat = Category(user_id=user_id, name=expense, type="expense", is_predefined=True, is_cogs=False)
         categories.append(cat.model_dump())
     
     if categories:
