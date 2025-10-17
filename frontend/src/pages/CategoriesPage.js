@@ -79,7 +79,8 @@ export default function CategoriesPage() {
     setEditingCategory(category);
     setFormData({
       name: category.name,
-      type: category.type
+      type: category.type,
+      is_cogs: category.is_cogs || false
     });
     setDialogOpen(true);
   };
