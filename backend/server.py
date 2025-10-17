@@ -124,6 +124,10 @@ class DashboardSummary(BaseModel):
     total_income: float
     total_expenses: float
     net_profit: float
+    total_cogs: float
+    cogs_percentage: float
+    gross_profit: float
+    gross_margin: float
     income_by_category: Dict[str, float]
     expenses_by_category: Dict[str, float]
     sales_by_payment: Dict[str, float]
