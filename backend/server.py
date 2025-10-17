@@ -842,6 +842,55 @@ async def auto_match_checks(current_user: dict = Depends(get_current_user)):
     return {"message": f"Matched {matched_count} checks automatically"}
 
 # Reconciliation report
+@api_router.get("/checks/in-transit-report")
+async def get_checks_in_transit_report(current_user: dict = Depends(get_current_user)):
+    """Get detailed report of checks in transit"""
+    outstanding_checks = await db.checks.find({
+        "user_id": current_user["id"],
+        "status": CheckStatus.PENDING
+    }, {"_id": 0}).sort("date_issued", 1).to_list(10000)
+    
+    total_amount = sum(check["amount"] for check in outstanding_checks)
+    
+    # Group by age
+    now = datetime.now(timezone.utc)
+    by_age = {
+        "0-7 days": [],
+        "8-30 days": [],
+        "31-60 days": [],
+        "60+ days": []
+    }
+    
+    for check in outstanding_checks:
+        try:
+            check_date = datetime.fromisoformat(check["date_issued"].replace('Z', '+00:00'))
+            days_old = (now - check_date).days
+            
+            if days_old <= 7:
+                by_age["0-7 days"].append(check)
+            elif days_old <= 30:
+                by_age["8-30 days"].append(check)
+            elif days_old <= 60:
+                by_age["31-60 days"].append(check)
+            else:
+                by_age["60+ days"].append(check)
+        except:
+            by_age["0-7 days"].append(check)
+    
+    return {
+        "total_checks": len(outstanding_checks),
+        "total_amount": total_amount,
+        "checks": outstanding_checks,
+        "by_age": {
+            key: {
+                "count": len(checks),
+                "amount": sum(c["amount"] for c in checks),
+                "checks": checks
+            }
+            for key, checks in by_age.items()
+        }
+    }
+
 @api_router.get("/bank-reconciliation/report", response_model=ReconciliationReport)
 async def get_reconciliation_report(
     statement_balance: float,
