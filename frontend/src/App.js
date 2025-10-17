@@ -9,6 +9,7 @@ import SalesPage from './pages/SalesPage';
 import ExpensesPage from './pages/ExpensesPage';
 import CategoriesPage from './pages/CategoriesPage';
 import ReportsPage from './pages/ReportsPage';
+import BankReconciliationPage from './pages/BankReconciliationPage';
 import Layout from './components/Layout';
 import './App.css';
 
