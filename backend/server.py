@@ -118,12 +118,23 @@ class User(BaseModel):
     username: str
     email: EmailStr
     hashed_password: str
+    role: str = UserRole.SELLER.value  # Default role
+    custom_permissions: Optional[List[str]] = None  # Override role permissions if needed
+    language: str = "en"  # Default language: English
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 class UserCreate(BaseModel):
     username: str
     email: EmailStr
     password: str
+    role: Optional[str] = UserRole.SELLER.value
+    language: Optional[str] = "en"
+
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    role: Optional[str] = None
+    custom_permissions: Optional[List[str]] = None
+    language: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr
