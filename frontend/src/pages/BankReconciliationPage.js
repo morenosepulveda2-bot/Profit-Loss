@@ -480,6 +480,7 @@ export default function BankReconciliationPage() {
                 </form>
               </DialogContent>
             </Dialog>
+            </div>
           </div>
 
           {/* Checks Table */}
