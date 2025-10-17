@@ -589,6 +589,25 @@ export default function BankReconciliationPage() {
 
         {/* Bank Transactions Tab */}
         <TabsContent value="transactions" className="space-y-6">
+          {/* Unvalidated Transactions Alert */}
+          {bankTransactions.filter(t => !t.validated).length > 0 && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-yellow-100 rounded-lg">
+                  <X size={20} className="text-yellow-700" />
+                </div>
+                <div>
+                  <p className="font-semibold text-yellow-900">
+                    {bankTransactions.filter(t => !t.validated).length} transacciones sin validar
+                  </p>
+                  <p className="text-sm text-yellow-700">
+                    Revisa y valida las transacciones resaltadas para clasificarlas como débito o crédito y asignarles categorías.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-end">
             <Dialog open={transactionDialogOpen} onOpenChange={setTransactionDialogOpen}>
               <DialogTrigger asChild>
