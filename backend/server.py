@@ -1084,6 +1084,63 @@ async def upload_bank_statement(
                     ]):
                         continue
                     
+                    # Pattern for Wells Fargo style: Date [CheckNum] Description Amount Amount Balance
+                    # Example: 9/15 Zelle to Camargo Elena on 09/12 Ref # Wfct0Z8Q8Z29 550.00
+                    # Example: 9/10 Purchase authorized on 09/09 Paypal *Streamline 57.00
+                    wells_fargo_match = re.search(r'^(\d{1,2}/\d{1,2})\s+(?:(\d+)\s+)?(.+?)\s+([\d,]+\.?\d{2})\s*$', line)
+                    
+                    if wells_fargo_match:
+                        date_short, check_num, description, amount_str = wells_fargo_match.groups()
+                        
+                        # Build full date - assume current or previous year
+                        try:
+                            current_year = datetime.now(timezone.utc).year
+                            date_str = f"{date_short}/{current_year}"
+                            date_obj = datetime.strptime(date_str, "%m/%d/%Y")
+                            date_formatted = date_obj.strftime("%Y-%m-%d")
+                        except:
+                            continue
+                        
+                        # Parse amount
+                        try:
+                            amount = float(amount_str.replace(',', ''))
+                        except:
+                            continue
+                        
+                        # Determine transaction type from description
+                        desc_upper = description.upper()
+                        is_deposit = any(word in desc_upper for word in [
+                            'ZELLE FROM', 'MOBILE DEPOSIT', 'DEPOSIT', 'ATM CASH DEPOSIT',
+                            'PAYMENT RECEIVED', 'TRANSFER IN', 'CREDIT'
+                        ])
+                        
+                        is_withdrawal = any(word in desc_upper for word in [
+                            'ZELLE TO', 'PURCHASE', 'PAYMENT', 'WITHDRAWAL', 'DEBIT', 
+                            'TRANSFER DEBIT', 'ACH PMT', 'ATM', 'CHECK'
+                        ])
+                        
+                        trans_type = "credit" if is_deposit else "debit"
+                        
+                        # Extract check number
+                        check_number = check_num if check_num else None
+                        if not check_number:
+                            check_match = re.search(r'CHECK #?(\d+)', description, re.IGNORECASE)
+                            if check_match:
+                                check_number = check_match.group(1)
+                        
+                        transaction = BankTransaction(
+                            user_id=current_user["id"],
+                            statement_id="",
+                            date=date_formatted,
+                            description=description.strip()[:200],
+                            amount=amount,
+                            type=trans_type,
+                            check_number=check_number
+                        )
+                        transactions.append(transaction.model_dump())
+                        logger.info(f"✓ Transaction #{len(transactions)}: {date_formatted} | {trans_type.upper()} | ${amount} | {description[:50]}")
+                        continue
+                    
                     # Pattern 1: Date at start, amount with $ or - sign
                     # Example: 09/15/2024 -500.00 CHECK #1234
                     match1 = re.search(r'(\d{1,2}/\d{1,2}/\d{2,4})\s+([-+]?\$?\s*[\d,]+\.?\d{2})\s+(.+)', line)
