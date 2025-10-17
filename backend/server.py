@@ -180,6 +180,8 @@ class BankTransaction(BaseModel):
     check_number: Optional[str] = None
     matched_check_id: Optional[str] = None
     matched_expense_id: Optional[str] = None
+    category_id: Optional[str] = None
+    validated: bool = False
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 class BankTransactionCreate(BaseModel):
@@ -188,6 +190,15 @@ class BankTransactionCreate(BaseModel):
     amount: float
     type: str
     check_number: Optional[str] = None
+
+class BankTransactionUpdate(BaseModel):
+    date: Optional[str] = None
+    description: Optional[str] = None
+    amount: Optional[float] = None
+    type: Optional[str] = None
+    check_number: Optional[str] = None
+    category_id: Optional[str] = None
+    validated: Optional[bool] = None
 
 class BankStatement(BaseModel):
     model_config = ConfigDict(extra="ignore")
