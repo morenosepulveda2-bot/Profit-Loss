@@ -933,6 +933,62 @@ async def extract_text_from_pdf(
         logger.error(f"Error extracting text: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Error al extraer texto: {str(e)}")
 
+class TextParseRequest(BaseModel):
+    text: str
+
+@api_router.post("/bank-statements/test-parse")
+async def test_parse_text(
+    request: TextParseRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Test parsing on sample text - useful for debugging"""
+    lines = request.text.split('\n')
+    results = []
+    
+    for line_num, line in enumerate(lines):
+        line = line.strip()
+        if not line or len(line) < 10:
+            continue
+        
+        # Try all patterns
+        patterns = [
+            (r'(\d{1,2}/\d{1,2}/\d{2,4})\s+([-+]?\$?\s*[\d,]+\.?\d{2})\s+(.+)', 'Pattern 1: Date Amount Desc'),
+            (r'(\d{1,2}/\d{1,2}/\d{2,4})\s+(.+?)\s+([-+]?\$?\s*[\d,]+\.?\d{2})$', 'Pattern 2: Date Desc Amount'),
+            (r'(.+?)\s+(\d{1,2}/\d{1,2}/\d{2,4})\s+([-+]?\$?\s*[\d,]+\.?\d{2})$', 'Pattern 3: Desc Date Amount'),
+            (r'(\d{4}-\d{1,2}-\d{1,2})\s+([-+]?\$?\s*[\d,]+\.?\d{2})\s+(.+)', 'Pattern 4: ISO Date'),
+            (r'(\d{1,2}/\d{1,2}/\d{2,4})\s+\d{1,2}/\d{1,2}/\d{2,4}\s+(.+?)\s+([-+]?\$?\s*[\d,]+\.?\d{2})$', 'Pattern 5: Two dates'),
+        ]
+        
+        matched = False
+        for pattern, pattern_name in patterns:
+            match = re.search(pattern, line)
+            if match:
+                results.append({
+                    "line_number": line_num + 1,
+                    "line": line,
+                    "matched": True,
+                    "pattern": pattern_name,
+                    "groups": match.groups()
+                })
+                matched = True
+                break
+        
+        if not matched and any(char.isdigit() for char in line):
+            results.append({
+                "line_number": line_num + 1,
+                "line": line,
+                "matched": False,
+                "pattern": None,
+                "groups": []
+            })
+    
+    return {
+        "total_lines": len(lines),
+        "matched_lines": len([r for r in results if r["matched"]]),
+        "unmatched_lines": len([r for r in results if not r["matched"]]),
+        "results": results
+    }
+
 @api_router.post("/bank-statements/upload")
 async def upload_bank_statement(
     file: UploadFile = File(...),
