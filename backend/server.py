@@ -475,6 +475,81 @@ async def login(user_data: UserLogin):
             "email": user["email"],
             "role": user.get("role", "seller"),
             "language": user.get("language", "en")
+
+
+@api_router.post("/auth/set-password")
+async def set_password(request: SetPasswordRequest):
+    """Set password for invited user using activation token"""
+    # Find user by activation token
+    user = await db.users.find_one({"activation_token": request.token}, {"_id": 0})
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="Invalid or expired activation token")
+    
+    # Check if token is expired
+    if user.get("activation_token_expires"):
+        expires_at = datetime.fromisoformat(user["activation_token_expires"])
+        if datetime.now(timezone.utc) > expires_at:
+            raise HTTPException(status_code=400, detail="Activation token has expired")
+    
+    # Check if user is already active
+    if user.get("is_active", False):
+        raise HTTPException(status_code=400, detail="User is already activated")
+    
+    # Update user with password and activate
+    hashed_password = hash_password(request.password)
+    await db.users.update_one(
+        {"id": user["id"]},
+        {
+            "$set": {
+                "hashed_password": hashed_password,
+                "is_active": True,
+                "activation_token": None,
+                "activation_token_expires": None
+            }
+        }
+    )
+    
+    # Create access token for immediate login
+    access_token = create_access_token(data={"sub": user["id"]})
+    
+    return {
+        "message": "Password set successfully",
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user["id"],
+            "username": user["username"],
+            "email": user["email"],
+            "role": user.get("role", "seller"),
+            "language": user.get("language", "en")
+        }
+    }
+
+@api_router.get("/auth/validate-token/{token}")
+async def validate_activation_token(token: str):
+    """Validate if activation token is valid and not expired"""
+    user = await db.users.find_one({"activation_token": token}, {"_id": 0, "username": 1, "email": 1, "activation_token_expires": 1, "is_active": 1})
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="Invalid activation token")
+    
+    # Check if already active
+    if user.get("is_active", False):
+        raise HTTPException(status_code=400, detail="This account is already activated")
+    
+    # Check expiration
+    if user.get("activation_token_expires"):
+        expires_at = datetime.fromisoformat(user["activation_token_expires"])
+        if datetime.now(timezone.utc) > expires_at:
+            raise HTTPException(status_code=400, detail="Activation token has expired")
+    
+    return {
+        "valid": True,
+        "username": user["username"],
+        "email": user["email"]
+    }
+
         }
     }
 
