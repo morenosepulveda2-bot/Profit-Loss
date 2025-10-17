@@ -103,9 +103,9 @@
 #====================================================================================================
 
 user_problem_statement: |
-  The user has a P&L application where COGS expenses are displayed in the expense breakdown ($14,231.71) 
-  but are not being included in the main COGS calculation formula, showing $0.00 instead. The issue is that 
-  the user created a category named "COGS" but it was not marked with the is_cogs=True flag in the database.
+  User wants two major features:
+  1. Role-based permission system with roles (Admin, Manager, Accountant, Seller) and granular permissions
+  2. Multi-language support (English as default, Spanish as option)
 
 backend:
   - task: "Fix COGS calculation to include all COGS categories"
