@@ -371,11 +371,17 @@ async def register(user_data: UserCreate):
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     
+    # Validate role
+    if user_data.role and user_data.role not in [r.value for r in UserRole]:
+        raise HTTPException(status_code=400, detail="Invalid role")
+    
     # Create new user
     user = User(
         username=user_data.username,
         email=user_data.email,
-        hashed_password=hash_password(user_data.password)
+        hashed_password=hash_password(user_data.password),
+        role=user_data.role or UserRole.SELLER.value,
+        language=user_data.language or "en"
     )
     
     await db.users.insert_one(user.model_dump())
