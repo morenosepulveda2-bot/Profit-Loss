@@ -475,6 +475,8 @@ async def login(user_data: UserLogin):
             "email": user["email"],
             "role": user.get("role", "seller"),
             "language": user.get("language", "en")
+        }
+    }
 
 
 @api_router.post("/auth/set-password")
