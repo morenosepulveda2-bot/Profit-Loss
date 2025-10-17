@@ -77,39 +77,44 @@ export default function DashboardPage() {
           <p className="text-3xl font-bold text-slate-900">${summary?.total_income?.toFixed(2) || '0.00'}</p>
         </div>
 
-        <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow" data-testid="total-expenses-card">
+        <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow" data-testid="total-cogs-card">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-red-50 rounded-lg">
-              <TrendingDown className="text-red-600" size={24} />
+            <div className="p-3 bg-orange-50 rounded-lg">
+              <DollarSign className="text-orange-600" size={24} />
             </div>
           </div>
-          <p className="text-sm text-slate-600 mb-1">Gastos Totales</p>
-          <p className="text-3xl font-bold text-slate-900">${summary?.total_expenses?.toFixed(2) || '0.00'}</p>
+          <p className="text-sm text-slate-600 mb-1">COGS (Costo de Ventas)</p>
+          <p className="text-3xl font-bold text-orange-600">${summary?.total_cogs?.toFixed(2) || '0.00'}</p>
+          <p className="text-xs text-slate-500 mt-1">
+            {summary?.cogs_percentage?.toFixed(1) || '0.0'}% de ventas
+          </p>
+        </div>
+
+        <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow" data-testid="gross-profit-card">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-blue-50 rounded-lg">
+              <Target className="text-blue-600" size={24} />
+            </div>
+          </div>
+          <p className="text-sm text-slate-600 mb-1">Ganancia Bruta</p>
+          <p className="text-3xl font-bold text-blue-600">${summary?.gross_profit?.toFixed(2) || '0.00'}</p>
+          <p className="text-xs text-slate-500 mt-1">
+            Margen: {summary?.gross_margin?.toFixed(1) || '0.0'}%
+          </p>
         </div>
 
         <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow" data-testid="net-profit-card">
           <div className="flex items-center justify-between mb-4">
-            <div className={`p-3 rounded-lg ${summary?.net_profit >= 0 ? 'bg-blue-50' : 'bg-orange-50'}`}>
-              <Target className={summary?.net_profit >= 0 ? 'text-blue-600' : 'text-orange-600'} size={24} />
+            <div className={`p-3 rounded-lg ${summary?.net_profit >= 0 ? 'bg-purple-50' : 'bg-red-50'}`}>
+              <TrendingDown className={summary?.net_profit >= 0 ? 'text-purple-600' : 'text-red-600'} size={24} />
             </div>
           </div>
           <p className="text-sm text-slate-600 mb-1">Ganancia Neta</p>
-          <p className={`text-3xl font-bold ${summary?.net_profit >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+          <p className={`text-3xl font-bold ${summary?.net_profit >= 0 ? 'text-purple-600' : 'text-red-600'}`}>
             ${summary?.net_profit?.toFixed(2) || '0.00'}
           </p>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-purple-50 rounded-lg">
-              <DollarSign className="text-purple-600" size={24} />
-            </div>
-          </div>
-          <p className="text-sm text-slate-600 mb-1">Margen de Ganancia</p>
-          <p className="text-3xl font-bold text-slate-900">
-            {summary?.total_income > 0 
-              ? ((summary.net_profit / summary.total_income) * 100).toFixed(1)
-              : '0.0'}%
+          <p className="text-xs text-slate-500 mt-1">
+            Después de todos los gastos
           </p>
         </div>
       </div>
