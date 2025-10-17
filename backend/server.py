@@ -19,6 +19,67 @@ import pdfplumber
 import re
 from enum import Enum
 
+# ============ Roles and Permissions Enums ============
+class UserRole(str, Enum):
+    ADMIN = "admin"
+    MANAGER = "manager"
+    ACCOUNTANT = "accountant"
+    SELLER = "seller"
+
+class Permission(str, Enum):
+    VIEW_DASHBOARD = "view_dashboard"
+    VIEW_SALES = "view_sales"
+    CREATE_SALES = "create_sales"
+    EDIT_SALES = "edit_sales"
+    DELETE_SALES = "delete_sales"
+    VIEW_EXPENSES = "view_expenses"
+    CREATE_EXPENSES = "create_expenses"
+    EDIT_EXPENSES = "edit_expenses"
+    DELETE_EXPENSES = "delete_expenses"
+    VIEW_CATEGORIES = "view_categories"
+    MANAGE_CATEGORIES = "manage_categories"
+    VIEW_REPORTS = "view_reports"
+    VIEW_BANK_RECONCILIATION = "view_bank_reconciliation"
+    MANAGE_BANK_RECONCILIATION = "manage_bank_reconciliation"
+    MANAGE_USERS = "manage_users"
+    MANAGE_SETTINGS = "manage_settings"
+
+# Role permissions mapping
+ROLE_PERMISSIONS = {
+    UserRole.ADMIN: [p.value for p in Permission],  # All permissions
+    UserRole.MANAGER: [
+        Permission.VIEW_DASHBOARD.value,
+        Permission.VIEW_SALES.value,
+        Permission.CREATE_SALES.value,
+        Permission.EDIT_SALES.value,
+        Permission.DELETE_SALES.value,
+        Permission.VIEW_EXPENSES.value,
+        Permission.CREATE_EXPENSES.value,
+        Permission.EDIT_EXPENSES.value,
+        Permission.DELETE_EXPENSES.value,
+        Permission.VIEW_CATEGORIES.value,
+        Permission.MANAGE_CATEGORIES.value,
+        Permission.VIEW_REPORTS.value,
+        Permission.VIEW_BANK_RECONCILIATION.value,
+        Permission.MANAGE_BANK_RECONCILIATION.value,
+    ],
+    UserRole.ACCOUNTANT: [
+        Permission.VIEW_DASHBOARD.value,
+        Permission.VIEW_EXPENSES.value,
+        Permission.CREATE_EXPENSES.value,
+        Permission.EDIT_EXPENSES.value,
+        Permission.VIEW_REPORTS.value,
+        Permission.VIEW_BANK_RECONCILIATION.value,
+        Permission.MANAGE_BANK_RECONCILIATION.value,
+    ],
+    UserRole.SELLER: [
+        Permission.VIEW_DASHBOARD.value,
+        Permission.VIEW_SALES.value,
+        Permission.CREATE_SALES.value,
+        Permission.EDIT_SALES.value,
+    ],
+}
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
