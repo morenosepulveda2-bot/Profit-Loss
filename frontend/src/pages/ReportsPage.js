@@ -223,23 +223,23 @@ export default function ReportsPage() {
                 <h4 className="text-sm font-semibold text-slate-700 mb-3">Cálculo del % COGS</h4>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-slate-600">Ventas Totales:</span>
+                    <span className="text-slate-600">Ingresos de Ventas:</span>
                     <span className="font-bold text-emerald-600">${reportData.summary.total_income.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-600">COGS:</span>
+                    <span className="text-slate-600">Gastos COGS:</span>
                     <span className="font-bold text-orange-600">${reportData.summary.total_cogs.toFixed(2)}</span>
                   </div>
                   <div className="border-t pt-2 mt-2">
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-600">Ratio COGS:</span>
+                      <span className="text-slate-600">% COGS:</span>
                       <span className="font-bold text-lg text-orange-700">{reportData.summary.cogs_percentage.toFixed(2)}%</span>
                     </div>
                     <p className="text-xs text-slate-500 mt-1">
-                      (${reportData.summary.total_income.toFixed(2)} ÷ ${reportData.summary.total_cogs.toFixed(2)}) × 100
+                      (${reportData.summary.total_cogs.toFixed(2)} ÷ ${reportData.summary.total_income.toFixed(2)}) × 100
                     </p>
                     <p className="text-xs text-slate-400 mt-1">
-                      * Ventas generadas por cada $1 de COGS
+                      * Porcentaje de ventas que se va en costo
                     </p>
                   </div>
                 </div>
