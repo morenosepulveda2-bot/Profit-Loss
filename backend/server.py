@@ -1075,8 +1075,13 @@ async def upload_bank_statement(
                     if not line or len(line) < 10:
                         continue
                     
-                    # Skip header lines
-                    if any(header in line.upper() for header in ['DATE', 'DESCRIPTION', 'AMOUNT', 'BALANCE', 'DEPOSITS', 'WITHDRAWALS', 'FECHA', 'DESCRIPCION', 'MONTO']):
+                    # Skip header lines and page headers
+                    if any(header in line.upper() for header in [
+                        'DATE', 'DESCRIPTION', 'AMOUNT', 'BALANCE', 'DEPOSITS', 'WITHDRAWALS', 
+                        'FECHA', 'DESCRIPCION', 'MONTO', 'CHECK NUMBER', 'ENDING DAILY',
+                        'TRANSACTION HISTORY', 'PAGE', 'BEGINNING BALANCE', 'ENDING BALANCE',
+                        'STATEMENT PERIOD', 'ACCOUNT NUMBER'
+                    ]):
                         continue
                     
                     # Pattern 1: Date at start, amount with $ or - sign
