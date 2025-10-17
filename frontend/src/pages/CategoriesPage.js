@@ -16,7 +16,8 @@ export default function CategoriesPage() {
   const [editingCategory, setEditingCategory] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
-    type: 'income'
+    type: 'income',
+    is_cogs: false
   });
 
   useEffect(() => {
