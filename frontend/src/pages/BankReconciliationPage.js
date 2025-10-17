@@ -916,12 +916,12 @@ export default function BankReconciliationPage() {
 
               <div className="space-y-2">
                 <Label>Categoría (opcional)</Label>
-                <Select value={validationCategoryId} onValueChange={setValidationCategoryId}>
+                <Select value={validationCategoryId || 'none'} onValueChange={(value) => setValidationCategoryId(value === 'none' ? '' : value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecciona una categoría" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sin categoría</SelectItem>
+                    <SelectItem value="none">Sin categoría</SelectItem>
                     {validationType === 'debit' ? (
                       <>
                         {categories.filter(c => c.type === 'expense').map(cat => (
