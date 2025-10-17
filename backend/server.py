@@ -552,9 +552,6 @@ async def validate_activation_token(token: str):
         "email": user["email"]
     }
 
-        }
-    }
-
 # ============ Category Routes ============
 
 @api_router.get("/categories", response_model=List[Category])
