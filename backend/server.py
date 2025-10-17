@@ -287,9 +287,15 @@ async def update_category(category_id: str, category_data: CategoryCreate, curre
     if existing.get("is_predefined", False):
         raise HTTPException(status_code=400, detail="Cannot modify predefined categories")
     
+    update_data = {"name": category_data.name, "type": category_data.type}
+    if category_data.type == "expense":
+        update_data["is_cogs"] = category_data.is_cogs
+    else:
+        update_data["is_cogs"] = False
+    
     await db.categories.update_one(
         {"id": category_id, "user_id": current_user["id"]},
-        {"$set": {"name": category_data.name, "type": category_data.type}}
+        {"$set": update_data}
     )
     
     updated = await db.categories.find_one({"id": category_id}, {"_id": 0})
