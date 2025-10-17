@@ -218,6 +218,58 @@ export default function BankReconciliationPage() {
     }
   };
 
+  const handleDownloadInTransitReport = async () => {
+    try {
+      const response = await axios.get(`${API}/checks/in-transit-report`);
+      const data = response.data;
+      
+      // Create CSV content
+      const csvRows = [
+        ['REPORTE DE CHEQUES EN TRÁNSITO'],
+        ['Generado:', new Date().toLocaleString('es-MX')],
+        [''],
+        ['RESUMEN'],
+        ['Total de Cheques:', data.total_checks],
+        ['Monto Total:', `$${data.total_amount.toFixed(2)}`],
+        [''],
+        ['DETALLE POR ANTIGÜEDAD'],
+        [''],
+      ];
+
+      // Add sections by age
+      Object.entries(data.by_age).forEach(([age, info]) => {
+        if (info.count > 0) {
+          csvRows.push([age.toUpperCase(), `${info.count} cheques`, `$${info.amount.toFixed(2)}`]);
+          csvRows.push(['Núm. Cheque', 'Fecha Emisión', 'Monto', 'Beneficiario', 'Descripción']);
+          
+          info.checks.forEach(check => {
+            csvRows.push([
+              check.check_number,
+              check.date_issued,
+              `$${check.amount.toFixed(2)}`,
+              check.payee,
+              check.description || ''
+            ]);
+          });
+          csvRows.push([]);
+        }
+      });
+
+      // Convert to CSV
+      const csvContent = csvRows.map(row => row.join(',')).join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `cheques-en-transito-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      
+      toast.success('Reporte de cheques en tránsito descargado');
+    } catch (error) {
+      toast.error('Error al generar reporte');
+    }
+  };
+
   const pendingChecks = checks.filter(c => c.status === 'pending');
   const clearedChecks = checks.filter(c => c.status === 'cleared');
   const unmatchedTransactions = bankTransactions.filter(t => !t.matched_check_id && t.type === 'debit');
