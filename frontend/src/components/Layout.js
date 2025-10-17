@@ -1,21 +1,29 @@
+import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, TrendingUp, TrendingDown, FolderOpen, FileText, Building2, LogOut } from 'lucide-react';
-
-import { Menu, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { useAuth } from '../contexts/AuthContext';
+import { LayoutDashboard, TrendingUp, TrendingDown, FolderOpen, FileText, Building2, Users, LogOut, Menu, X } from 'lucide-react';
 import { useState } from 'react';
+import LanguageSwitcher from './LanguageSwitcher';
 
-export default function Layout({ user, onLogout }) {
+export default function Layout() {
+  const { t } = useTranslation();
+  const { user, logout, hasPermission } = useAuth();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const navigation = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'Ventas', path: '/sales', icon: TrendingUp },
-    { name: 'Gastos', path: '/expenses', icon: TrendingDown },
-    { name: 'Categorías', path: '/categories', icon: FolderOpen },
-    { name: 'Reportes', path: '/reports', icon: FileText },
-    { name: 'Conciliación Bancaria', path: '/bank-reconciliation', icon: Building2 },
+  const allNavigation = [
+    { name: t('nav.dashboard'), path: '/', icon: LayoutDashboard, permission: 'view_dashboard' },
+    { name: t('nav.sales'), path: '/sales', icon: TrendingUp, permission: 'view_sales' },
+    { name: t('nav.expenses'), path: '/expenses', icon: TrendingDown, permission: 'view_expenses' },
+    { name: t('nav.categories'), path: '/categories', icon: FolderOpen, permission: 'view_categories' },
+    { name: t('nav.reports'), path: '/reports', icon: FileText, permission: 'view_reports' },
+    { name: t('nav.bankReconciliation'), path: '/bank-reconciliation', icon: Building2, permission: 'view_bank_reconciliation' },
+    { name: t('nav.users'), path: '/users', icon: Users, permission: 'manage_users' },
   ];
+
+  // Filter navigation based on user permissions
+  const navigation = allNavigation.filter(item => hasPermission(item.permission));
 
   const handleNavClick = () => {
     setMobileMenuOpen(false);
@@ -28,12 +36,15 @@ export default function Layout({ user, onLogout }) {
         <h1 className="text-xl font-bold text-slate-900" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
           Profit & Loss
         </h1>
-        <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg"
-        >
-          {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
+        <div className="flex items-center gap-2">
+          <LanguageSwitcher />
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg"
+          >
+            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Menu Overlay */}
@@ -57,11 +68,12 @@ export default function Layout({ user, onLogout }) {
             <h1 className="text-2xl font-bold text-slate-900" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
               Profit & Loss
             </h1>
-            <p className="text-sm text-slate-600 mt-1">{user.username}</p>
+            <p className="text-sm text-slate-600 mt-1">{user?.username}</p>
+            <p className="text-xs text-slate-500 mt-0.5 capitalize">{user?.role}</p>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-1">
+          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
             {navigation.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
@@ -69,6 +81,7 @@ export default function Layout({ user, onLogout }) {
                 <Link
                   key={item.path}
                   to={item.path}
+                  onClick={handleNavClick}
                   data-testid={`nav-${item.name.toLowerCase()}`}
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                     isActive
@@ -83,23 +96,26 @@ export default function Layout({ user, onLogout }) {
             })}
           </nav>
 
-          {/* Logout */}
-          <div className="p-4 border-t border-slate-200">
+          {/* User Actions */}
+          <div className="p-4 border-t border-slate-200 space-y-2">
+            <div className="hidden lg:block">
+              <LanguageSwitcher />
+            </div>
             <button
-              onClick={onLogout}
+              onClick={logout}
               data-testid="logout-button"
               className="flex items-center gap-3 px-4 py-3 w-full text-red-600 hover:bg-red-50 rounded-lg transition-colors"
             >
               <LogOut size={20} />
-              <span>Cerrar Sesión</span>
+              <span>{t('common.logout')}</span>
             </button>
           </div>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="ml-64 min-h-screen">
-        <div className="p-8">
+      <main className="lg:ml-64 min-h-screen pt-16 lg:pt-0">
+        <div className="p-4 lg:p-8">
           <Outlet />
         </div>
       </main>
