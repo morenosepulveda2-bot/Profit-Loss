@@ -29,6 +29,7 @@
     "categories": "Categories",
     "reports": "Reports",
     "bankReconciliation": "Bank Reconciliation",
+    "purchaseOrders": "Purchase Orders",
     "users": "Users"
   },
   "auth": {
