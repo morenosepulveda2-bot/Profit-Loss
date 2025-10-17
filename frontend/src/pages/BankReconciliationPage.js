@@ -670,9 +670,9 @@ export default function BankReconciliationPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {bankTransactions.map(transaction => (
-                    <tr key={transaction.id} className="hover:bg-slate-50 transition-colors">
+                    <tr key={transaction.id} className={`hover:bg-slate-50 transition-colors ${!transaction.validated ? 'bg-yellow-50' : ''}`}>
                       <td className="px-6 py-4 text-sm text-slate-900">{transaction.date}</td>
-                      <td className="px-6 py-4 text-sm text-slate-600">{transaction.description}</td>
+                      <td className="px-6 py-4 text-sm text-slate-600 max-w-xs truncate">{transaction.description}</td>
                       <td className="px-6 py-4 text-sm">
                         {transaction.type === 'debit' ? (
                           <span className="text-red-600 flex items-center gap-1">
@@ -685,31 +685,35 @@ export default function BankReconciliationPage() {
                         )}
                       </td>
                       <td className="px-6 py-4 text-sm font-semibold">${transaction.amount.toFixed(2)}</td>
-                      <td className="px-6 py-4 text-sm text-slate-600">{transaction.check_number || '-'}</td>
+                      <td className="px-6 py-4 text-sm text-slate-600">{getCategoryName(transaction.category_id)}</td>
                       <td className="px-6 py-4 text-sm">
-                        {transaction.matched_check_id ? (
-                          <span className="text-green-600 flex items-center gap-1">
-                            <Check size={14} /> Matched
+                        {transaction.validated ? (
+                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                            Validada
                           </span>
                         ) : (
-                          <span className="text-yellow-600">Sin emparejar</span>
+                          <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">
+                            Sin validar
+                          </span>
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        {!transaction.matched_check_id && transaction.type === 'debit' && pendingChecks.length > 0 && (
-                          <Select onValueChange={(checkId) => handleMatchCheck(transaction.id, checkId)}>
-                            <SelectTrigger className="w-40">
-                              <SelectValue placeholder="Emparejar" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {pendingChecks.map(check => (
-                                <SelectItem key={check.id} value={check.id}>
-                                  #{check.check_number} - ${check.amount}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handleOpenValidateDialog(transaction)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Validar y categorizar"
+                          >
+                            <Check size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTransaction(transaction.id)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Eliminar"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
