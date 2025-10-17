@@ -1005,15 +1005,20 @@ async def upload_bank_statement(
                             groups = match.groups()
                             
                             # Identify which pattern matched
-                            if match1:
+                            if match1 or match4 or match6:
                                 date_str, amount_str, description = groups
-                            elif match2:
-                                date_str, amount_str, description = groups
-                            elif match3:
+                            elif match2 or match5:
                                 date_str, description, amount_str = groups
-                            elif match4:
+                            elif match3:
                                 description, date_str, amount_str = groups
                             else:
+                                continue
+                            
+                            # Clean up description
+                            description = description.strip()
+                            
+                            # Skip if description looks like a subtotal or header
+                            if any(skip in description.upper() for skip in ['TOTAL', 'SUBTOTAL', 'BALANCE', 'CONTINUED', 'PAGE']):
                                 continue
                             
                             # Parse amount
