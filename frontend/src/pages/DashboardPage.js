@@ -75,6 +75,7 @@ export default function DashboardPage() {
           </div>
           <p className="text-sm text-slate-600 mb-1">Ingresos Totales</p>
           <p className="text-3xl font-bold text-slate-900">${summary?.total_income?.toFixed(2) || '0.00'}</p>
+          <p className="text-xs text-slate-400 mt-1">Incluye transacciones bancarias validadas</p>
         </div>
 
         <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow" data-testid="total-cogs-card">
