@@ -446,10 +446,23 @@ async def get_dashboard_summary(
     # Get categories for mapping
     categories = await db.categories.find({"user_id": current_user["id"]}, {"_id": 0}).to_list(1000)
     cat_map = {cat["id"]: cat["name"] for cat in categories}
+    cogs_categories = {cat["id"] for cat in categories if cat.get("is_cogs", False)}
     
     # Calculate totals
     total_income = sum(sale["amount"] for sale in sales)
     total_expenses = sum(expense["amount"] for expense in expenses)
+    
+    # Calculate COGS
+    total_cogs = sum(
+        expense["amount"] 
+        for expense in expenses 
+        if expense["category_id"] in cogs_categories
+    )
+    
+    # Calculate metrics
+    cogs_percentage = (total_cogs / total_income * 100) if total_income > 0 else 0
+    gross_profit = total_income - total_cogs
+    gross_margin = (gross_profit / total_income * 100) if total_income > 0 else 0
     
     # Group by category
     income_by_category = defaultdict(float)
@@ -471,6 +484,10 @@ async def get_dashboard_summary(
         total_income=total_income,
         total_expenses=total_expenses,
         net_profit=total_income - total_expenses,
+        total_cogs=total_cogs,
+        cogs_percentage=cogs_percentage,
+        gross_profit=gross_profit,
+        gross_margin=gross_margin,
         income_by_category=dict(income_by_category),
         expenses_by_category=dict(expenses_by_category),
         sales_by_payment=dict(sales_by_payment)
