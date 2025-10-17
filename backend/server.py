@@ -1568,6 +1568,138 @@ async def upload_bank_statement(
         logger.error(f"Error uploading bank statement: {str(e)}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Error al procesar PDF: {str(e)}")
 
+
+# ============ User Management Routes (Admin Only) ============
+
+@api_router.get("/users", response_model=List[Dict[str, Any]])
+async def get_all_users(current_user: dict = Depends(require_admin)):
+    """Get all users (Admin only)"""
+    users = await db.users.find({}, {"_id": 0, "hashed_password": 0}).to_list(1000)
+    # Add permissions to each user
+    for user in users:
+        user["permissions"] = get_user_permissions(user)
+    return users
+
+@api_router.get("/users/{user_id}", response_model=Dict[str, Any])
+async def get_user(user_id: str, current_user: dict = Depends(require_admin)):
+    """Get specific user (Admin only)"""
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "hashed_password": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user["permissions"] = get_user_permissions(user)
+    return user
+
+@api_router.put("/users/{user_id}")
+async def update_user(user_id: str, user_data: UserUpdate, current_user: dict = Depends(require_admin)):
+    """Update user (Admin only)"""
+    # Validate role if provided
+    if user_data.role and user_data.role not in [r.value for r in UserRole]:
+        raise HTTPException(status_code=400, detail="Invalid role")
+    
+    # Validate permissions if provided
+    if user_data.custom_permissions:
+        valid_permissions = [p.value for p in Permission]
+        for perm in user_data.custom_permissions:
+            if perm not in valid_permissions:
+                raise HTTPException(status_code=400, detail=f"Invalid permission: {perm}")
+    
+    # Build update dict
+    update_data = {}
+    if user_data.username:
+        update_data["username"] = user_data.username
+    if user_data.role:
+        update_data["role"] = user_data.role
+    if user_data.custom_permissions is not None:
+        update_data["custom_permissions"] = user_data.custom_permissions
+    if user_data.language:
+        update_data["language"] = user_data.language
+    
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No data to update")
+    
+    result = await db.users.update_one(
+        {"id": user_id},
+        {"$set": update_data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {"message": "User updated successfully"}
+
+@api_router.delete("/users/{user_id}")
+async def delete_user(user_id: str, current_user: dict = Depends(require_admin)):
+    """Delete user (Admin only)"""
+    if user_id == current_user["id"]:
+        raise HTTPException(status_code=400, detail="Cannot delete yourself")
+    
+    result = await db.users.delete_one({"id": user_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Also delete user's data
+    await db.categories.delete_many({"user_id": user_id})
+    await db.sales.delete_many({"user_id": user_id})
+    await db.expenses.delete_many({"user_id": user_id})
+    await db.bank_transactions.delete_many({"user_id": user_id})
+    await db.checks.delete_many({"user_id": user_id})
+    await db.bank_statements.delete_many({"user_id": user_id})
+    
+    return {"message": "User deleted successfully"}
+
+# ============ User Profile Routes ============
+
+@api_router.get("/profile/permissions")
+async def get_my_permissions(current_user: dict = Depends(get_current_user)):
+    """Get current user's permissions"""
+    return {
+        "user_id": current_user["id"],
+        "username": current_user["username"],
+        "email": current_user["email"],
+        "role": current_user.get("role", UserRole.SELLER.value),
+        "language": current_user.get("language", "en"),
+        "permissions": get_user_permissions(current_user)
+    }
+
+@api_router.put("/profile/language")
+async def update_my_language(language: str, current_user: dict = Depends(get_current_user)):
+    """Update current user's language preference"""
+    if language not in ["en", "es"]:
+        raise HTTPException(status_code=400, detail="Invalid language. Use 'en' or 'es'")
+    
+    await db.users.update_one(
+        {"id": current_user["id"]},
+        {"$set": {"language": language}}
+    )
+    
+    return {"message": "Language updated successfully", "language": language}
+
+# ============ Roles and Permissions Info Routes ============
+
+@api_router.get("/roles")
+async def get_available_roles(current_user: dict = Depends(require_admin)):
+    """Get all available roles and their permissions (Admin only)"""
+    return {
+        "roles": [
+            {
+                "value": role.value,
+                "name": role.name,
+                "permissions": ROLE_PERMISSIONS[role]
+            }
+            for role in UserRole
+        ]
+    }
+
+@api_router.get("/permissions")
+async def get_available_permissions(current_user: dict = Depends(require_admin)):
+    """Get all available permissions (Admin only)"""
+    return {
+        "permissions": [
+            {"value": perm.value, "name": perm.name}
+            for perm in Permission
+        ]
+    }
+
 # Include the router in the main app
 app.include_router(api_router)
 
