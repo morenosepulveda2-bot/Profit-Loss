@@ -13,6 +13,7 @@ import ExpensesPage from './pages/ExpensesPage';
 import CategoriesPage from './pages/CategoriesPage';
 import ReportsPage from './pages/ReportsPage';
 import BankReconciliationPage from './pages/BankReconciliationPage';
+import PurchaseOrdersPage from './pages/PurchaseOrdersPage';
 import UsersPage from './pages/UsersPage';
 import Layout from './components/Layout';
 import './App.css';
