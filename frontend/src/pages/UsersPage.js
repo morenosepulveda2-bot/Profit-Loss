@@ -6,6 +6,7 @@ import { API } from '../App';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
+import { Checkbox } from '../components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -22,35 +23,41 @@ import {
   DialogTrigger,
 } from '../components/ui/dialog';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '../components/ui/alert-dialog';
-import { Pencil, Trash2, UserPlus, Copy, CheckCircle, Clock } from 'lucide-react';
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '../components/ui/accordion';
+import { Pencil, Trash2, UserPlus, Copy, CheckCircle, Clock, Shield } from 'lucide-react';
 
 export default function UsersPage() {
   const { t } = useTranslation();
   const [users, setUsers] = useState([]);
+  const [availablePermissions, setAvailablePermissions] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
+  const [selectedUserPermissions, setSelectedUserPermissions] = useState(null);
   const [activationLink, setActivationLink] = useState(null);
 
   useEffect(() => {
-    fetchUsers();
+    fetchData();
   }, []);
 
-  const fetchUsers = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API}/users`);
-      setUsers(response.data);
+      const [usersRes, permsRes, rolesRes] = await Promise.all([
+        axios.get(`${API}/users`),
+        axios.get(`${API}/permissions`),
+        axios.get(`${API}/roles`)
+      ]);
+      setUsers(usersRes.data);
+      setAvailablePermissions(permsRes.data.permissions || []);
+      setRoles(rolesRes.data.roles || []);
     } catch (error) {
       toast.error(t('errors.somethingWentWrong'));
     } finally {
@@ -63,7 +70,7 @@ export default function UsersPage() {
       const response = await axios.post(`${API}/users/invite`, userData);
       toast.success(t('users.userAdded'));
       setActivationLink(response.data.activation_link);
-      fetchUsers();
+      fetchData();
     } catch (error) {
       toast.error(error.response?.data?.detail || t('errors.somethingWentWrong'));
     }
@@ -73,7 +80,7 @@ export default function UsersPage() {
     try {
       await axios.put(`${API}/users/${userId}`, data);
       toast.success(t('users.userUpdated'));
-      fetchUsers();
+      fetchData();
       setEditDialogOpen(false);
       setEditingUser(null);
     } catch (error) {
@@ -82,10 +89,11 @@ export default function UsersPage() {
   };
 
   const handleDeleteUser = async (userId) => {
+    if (!window.confirm('Are you sure you want to delete this user?')) return;
     try {
       await axios.delete(`${API}/users/${userId}`);
       toast.success(t('users.userDeleted'));
-      fetchUsers();
+      fetchData();
     } catch (error) {
       toast.error(error.response?.data?.detail || t('errors.somethingWentWrong'));
     }
@@ -98,16 +106,11 @@ export default function UsersPage() {
 
   const getRoleName = (role) => {
     switch (role) {
-      case 'admin':
-        return t('users.admin');
-      case 'manager':
-        return t('users.manager');
-      case 'accountant':
-        return t('users.accountant');
-      case 'seller':
-        return t('users.seller');
-      default:
-        return role;
+      case 'admin': return t('users.admin');
+      case 'manager': return t('users.manager');
+      case 'accountant': return t('users.accountant');
+      case 'seller': return t('users.seller');
+      default: return role;
     }
   };
 
@@ -127,6 +130,11 @@ export default function UsersPage() {
         </span>
       );
     }
+  };
+
+  const viewUserPermissions = (user) => {
+    setSelectedUserPermissions(user);
+    setPermissionsDialogOpen(true);
   };
 
   if (loading) {
@@ -157,11 +165,11 @@ export default function UsersPage() {
               Invite User
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Invite New User</DialogTitle>
               <DialogDescription>
-                Create a new user account. They will receive an activation link to set their password.
+                Create a new user account with specific role and permissions.
               </DialogDescription>
             </DialogHeader>
             {activationLink ? (
@@ -170,10 +178,49 @@ export default function UsersPage() {
                 setActivationLink(null);
               }} />
             ) : (
-              <UserInviteForm onSubmit={handleInviteUser} />
+              <UserInviteForm 
+                onSubmit={handleInviteUser} 
+                availablePermissions={availablePermissions}
+                roles={roles}
+              />
             )}
           </DialogContent>
         </Dialog>
+      </div>
+
+      {/* Role Permissions Reference */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <Accordion type="single" collapsible>
+          <AccordionItem value="permissions" className="border-none">
+            <AccordionTrigger className="text-sm font-medium text-blue-900 hover:no-underline">
+              <div className="flex items-center gap-2">
+                <Shield size={16} />
+                View Default Permissions by Role
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+                {roles.map(role => (
+                  <div key={role.value} className="bg-white rounded-lg p-4 border border-slate-200">
+                    <h3 className="font-semibold text-slate-900 mb-2">{getRoleName(role.value)}</h3>
+                    <p className="text-xs text-slate-600 mb-3">{role.permissions.length} permissions</p>
+                    <div className="space-y-1 text-xs text-slate-700">
+                      {role.permissions.slice(0, 5).map(perm => (
+                        <div key={perm} className="flex items-start gap-1">
+                          <CheckCircle size={12} className="text-emerald-600 mt-0.5 flex-shrink-0" />
+                          <span className="break-words">{t(`permissions.${perm}`)}</span>
+                        </div>
+                      ))}
+                      {role.permissions.length > 5 && (
+                        <p className="text-slate-500 italic">+{role.permissions.length - 5} more...</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       </div>
 
       {/* Users Table */}
@@ -186,7 +233,7 @@ export default function UsersPage() {
                 <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">{t('users.email')}</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">{t('users.role')}</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Status</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">{t('users.language')}</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Permissions</th>
                 <th className="px-6 py-4 text-right text-sm font-semibold text-slate-900">Actions</th>
               </tr>
             </thead>
@@ -201,7 +248,17 @@ export default function UsersPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm">{getStatusBadge(user)}</td>
-                  <td className="px-6 py-4 text-sm text-slate-600 uppercase">{user.language || 'en'}</td>
+                  <td className="px-6 py-4 text-sm">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => viewUserPermissions(user)}
+                      className="text-blue-600 hover:text-blue-700"
+                    >
+                      <Shield size={14} className="mr-1" />
+                      {user.custom_permissions ? 'Custom' : 'Default'} ({user.permissions?.length || 0})
+                    </Button>
+                  </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2">
                       <Dialog open={editDialogOpen && editingUser?.id === user.id} onOpenChange={(open) => {
@@ -217,15 +274,17 @@ export default function UsersPage() {
                             <Pencil size={16} />
                           </Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                           <DialogHeader>
                             <DialogTitle>{t('users.editUser')}</DialogTitle>
                             <DialogDescription>
-                              Update user role and permissions
+                              Update user role and customize permissions
                             </DialogDescription>
                           </DialogHeader>
                           <UserEditForm
                             user={user}
+                            availablePermissions={availablePermissions}
+                            roles={roles}
                             onSubmit={(data) => handleUpdateUser(user.id, data)}
                             onCancel={() => {
                               setEditDialogOpen(false);
@@ -250,11 +309,47 @@ export default function UsersPage() {
           </table>
         </div>
       </div>
+
+      {/* Permissions View Dialog */}
+      <Dialog open={permissionsDialogOpen} onOpenChange={setPermissionsDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>User Permissions</DialogTitle>
+            <DialogDescription>
+              {selectedUserPermissions?.username} ({selectedUserPermissions?.email})
+            </DialogDescription>
+          </DialogHeader>
+          {selectedUserPermissions && (
+            <div className="space-y-4">
+              <div className="bg-slate-50 rounded-lg p-4">
+                <p className="text-sm font-medium text-slate-900 mb-2">
+                  Role: <span className="text-emerald-600">{getRoleName(selectedUserPermissions.role)}</span>
+                </p>
+                <p className="text-sm text-slate-600">
+                  {selectedUserPermissions.custom_permissions ? (
+                    <span className="text-orange-600 font-medium">✨ Using custom permissions</span>
+                  ) : (
+                    <span>Using default role permissions</span>
+                  )}
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 max-h-96 overflow-y-auto">
+                {selectedUserPermissions.permissions?.map(perm => (
+                  <div key={perm} className="flex items-start gap-2 p-2 bg-emerald-50 rounded border border-emerald-200">
+                    <CheckCircle size={14} className="text-emerald-600 mt-0.5 flex-shrink-0" />
+                    <span className="text-xs text-slate-700">{t(`permissions.${perm}`)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function UserInviteForm({ onSubmit }) {
+function UserInviteForm({ onSubmit, availablePermissions, roles }) {
   const { t } = useTranslation();
   const [formData, setFormData] = useState({
     username: '',
@@ -262,56 +357,222 @@ function UserInviteForm({ onSubmit }) {
     role: 'seller',
     language: 'en',
   });
+  const [useCustomPermissions, setUseCustomPermissions] = useState(false);
+  const [selectedPermissions, setSelectedPermissions] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+
+  const currentRolePermissions = roles.find(r => r.value === formData.role)?.permissions || [];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-    await onSubmit(formData);
+    const submitData = {
+      ...formData,
+      custom_permissions: useCustomPermissions ? selectedPermissions : null
+    };
+    await onSubmit(submitData);
     setSubmitting(false);
+  };
+
+  const togglePermission = (perm) => {
+    setSelectedPermissions(prev => 
+      prev.includes(perm) ? prev.filter(p => p !== perm) : [...prev, perm]
+    );
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="username">{t('users.username')}</Label>
-        <Input
-          id="username"
-          value={formData.username}
-          onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-          placeholder="Enter full name"
-          required
-        />
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="username">{t('users.username')}</Label>
+          <Input
+            id="username"
+            value={formData.username}
+            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+            placeholder="Enter full name"
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="email">{t('users.email')}</Label>
+          <Input
+            id="email"
+            type="email"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            placeholder="user@example.com"
+            required
+          />
+        </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="email">{t('users.email')}</Label>
-        <Input
-          id="email"
-          type="email"
-          value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          placeholder="user@example.com"
-          required
-        />
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="role">{t('users.role')}</Label>
+          <Select
+            value={formData.role}
+            onValueChange={(value) => {
+              setFormData({ ...formData, role: value });
+              setUseCustomPermissions(false);
+              setSelectedPermissions([]);
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={t('users.selectRole')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="admin">{t('users.admin')}</SelectItem>
+              <SelectItem value="manager">{t('users.manager')}</SelectItem>
+              <SelectItem value="accountant">{t('users.accountant')}</SelectItem>
+              <SelectItem value="seller">{t('users.seller')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="language">{t('users.language')}</Label>
+          <Select
+            value={formData.language}
+            onValueChange={(value) => setFormData({ ...formData, language: value })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select Language" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="en">English</SelectItem>
+              <SelectItem value="es">Español</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="role">{t('users.role')}</Label>
-        <Select
-          value={formData.role}
-          onValueChange={(value) => setFormData({ ...formData, role: value })}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder={t('users.selectRole')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="admin">{t('users.admin')}</SelectItem>
-            <SelectItem value="manager">{t('users.manager')}</SelectItem>
-            <SelectItem value="accountant">{t('users.accountant')}</SelectItem>
-            <SelectItem value="seller">{t('users.seller')}</SelectItem>
-          </SelectContent>
-        </Select>
+      {/* Custom Permissions Section */}
+      <div className="border-t pt-4">
+        <div className="flex items-center space-x-2 mb-4">
+          <Checkbox 
+            id="customPerms" 
+            checked={useCustomPermissions}
+            onCheckedChange={setUseCustomPermissions}
+          />
+          <Label htmlFor="customPerms" className="cursor-pointer">
+            Customize permissions (override default role permissions)
+          </Label>
+        </div>
+
+        {useCustomPermissions ? (
+          <div className="space-y-3">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <p className="text-xs text-yellow-800">
+                ⚠️ Custom permissions will override the default {formData.role} role permissions.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto p-2 bg-slate-50 rounded-lg border">
+              {availablePermissions.map(perm => (
+                <div key={perm.value} className="flex items-start space-x-2">
+                  <Checkbox
+                    id={perm.value}
+                    checked={selectedPermissions.includes(perm.value)}
+                    onCheckedChange={() => togglePermission(perm.value)}
+                  />
+                  <Label htmlFor={perm.value} className="text-xs cursor-pointer leading-tight">
+                    {t(`permissions.${perm.value}`)}
+                  </Label>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-slate-600">
+              {selectedPermissions.length} permission(s) selected
+            </p>
+          </div>
+        ) : (
+          <div className="bg-slate-50 rounded-lg p-3 border">
+            <p className="text-xs text-slate-600 mb-2">
+              Default permissions for <span className="font-semibold">{formData.role}</span> role:
+            </p>
+            <div className="grid grid-cols-2 gap-1">
+              {currentRolePermissions.map(perm => (
+                <div key={perm} className="flex items-start gap-1 text-xs text-slate-700">
+                  <CheckCircle size={12} className="text-emerald-600 mt-0.5 flex-shrink-0" />
+                  <span>{t(`permissions.${perm}`)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-end gap-2 pt-4 border-t">
+        <Button type="submit" disabled={submitting} className="bg-emerald-600 hover:bg-emerald-700">
+          {submitting ? 'Creating...' : 'Create User & Generate Link'}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function UserEditForm({ user, availablePermissions, roles, onSubmit, onCancel }) {
+  const { t } = useTranslation();
+  const [formData, setFormData] = useState({
+    username: user.username,
+    role: user.role,
+    language: user.language || 'en',
+  });
+  const [useCustomPermissions, setUseCustomPermissions] = useState(!!user.custom_permissions);
+  const [selectedPermissions, setSelectedPermissions] = useState(user.custom_permissions || []);
+
+  const currentRolePermissions = roles.find(r => r.value === formData.role)?.permissions || [];
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const submitData = {
+      ...formData,
+      custom_permissions: useCustomPermissions ? selectedPermissions : null
+    };
+    onSubmit(submitData);
+  };
+
+  const togglePermission = (perm) => {
+    setSelectedPermissions(prev => 
+      prev.includes(perm) ? prev.filter(p => p !== perm) : [...prev, perm]
+    );
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="username">{t('users.username')}</Label>
+          <Input
+            id="username"
+            value={formData.username}
+            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="role">{t('users.role')}</Label>
+          <Select
+            value={formData.role}
+            onValueChange={(value) => {
+              setFormData({ ...formData, role: value });
+              if (!useCustomPermissions) {
+                setSelectedPermissions([]);
+              }
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={t('users.selectRole')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="admin">{t('users.admin')}</SelectItem>
+              <SelectItem value="manager">{t('users.manager')}</SelectItem>
+              <SelectItem value="accountant">{t('users.accountant')}</SelectItem>
+              <SelectItem value="seller">{t('users.seller')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -330,9 +591,72 @@ function UserInviteForm({ onSubmit }) {
         </Select>
       </div>
 
-      <div className="flex justify-end gap-2 pt-4">
-        <Button type="submit" disabled={submitting} className="bg-emerald-600 hover:bg-emerald-700">
-          {submitting ? 'Creating...' : 'Create User & Generate Link'}
+      {/* Custom Permissions Section */}
+      <div className="border-t pt-4">
+        <div className="flex items-center space-x-2 mb-4">
+          <Checkbox 
+            id="customPermsEdit" 
+            checked={useCustomPermissions}
+            onCheckedChange={(checked) => {
+              setUseCustomPermissions(checked);
+              if (!checked) {
+                setSelectedPermissions([]);
+              }
+            }}
+          />
+          <Label htmlFor="customPermsEdit" className="cursor-pointer">
+            Customize permissions
+          </Label>
+        </div>
+
+        {useCustomPermissions ? (
+          <div className="space-y-3">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <p className="text-xs text-yellow-800">
+                ⚠️ Custom permissions will override the default {formData.role} role permissions.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto p-2 bg-slate-50 rounded-lg border">
+              {availablePermissions.map(perm => (
+                <div key={perm.value} className="flex items-start space-x-2">
+                  <Checkbox
+                    id={`edit-${perm.value}`}
+                    checked={selectedPermissions.includes(perm.value)}
+                    onCheckedChange={() => togglePermission(perm.value)}
+                  />
+                  <Label htmlFor={`edit-${perm.value}`} className="text-xs cursor-pointer leading-tight">
+                    {t(`permissions.${perm.value}`)}
+                  </Label>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-slate-600">
+              {selectedPermissions.length} permission(s) selected
+            </p>
+          </div>
+        ) : (
+          <div className="bg-slate-50 rounded-lg p-3 border">
+            <p className="text-xs text-slate-600 mb-2">
+              Using default permissions for <span className="font-semibold">{formData.role}</span> role:
+            </p>
+            <div className="grid grid-cols-2 gap-1">
+              {currentRolePermissions.map(perm => (
+                <div key={perm} className="flex items-start gap-1 text-xs text-slate-700">
+                  <CheckCircle size={12} className="text-emerald-600 mt-0.5 flex-shrink-0" />
+                  <span>{t(`permissions.${perm}`)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-end gap-2 pt-4 border-t">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          {t('common.cancel')}
+        </Button>
+        <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700">
+          {t('common.save')}
         </Button>
       </div>
     </form>
@@ -377,76 +701,5 @@ function ActivationLinkDisplay({ link, onCopy, onClose }) {
         </Button>
       </div>
     </div>
-  );
-}
-
-function UserEditForm({ user, onSubmit, onCancel }) {
-  const { t } = useTranslation();
-  const [formData, setFormData] = useState({
-    username: user.username,
-    role: user.role,
-    language: user.language || 'en',
-  });
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="username">{t('users.username')}</Label>
-        <Input
-          id="username"
-          value={formData.username}
-          onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-          required
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="role">{t('users.role')}</Label>
-        <Select
-          value={formData.role}
-          onValueChange={(value) => setFormData({ ...formData, role: value })}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder={t('users.selectRole')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="admin">{t('users.admin')}</SelectItem>
-            <SelectItem value="manager">{t('users.manager')}</SelectItem>
-            <SelectItem value="accountant">{t('users.accountant')}</SelectItem>
-            <SelectItem value="seller">{t('users.seller')}</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="language">{t('users.language')}</Label>
-        <Select
-          value={formData.language}
-          onValueChange={(value) => setFormData({ ...formData, language: value })}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select Language" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="en">English</SelectItem>
-            <SelectItem value="es">Español</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="flex justify-end gap-2 pt-4">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          {t('common.cancel')}
-        </Button>
-        <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700">
-          {t('common.save')}
-        </Button>
-      </div>
-    </form>
   );
 }
