@@ -1604,6 +1604,61 @@ async def get_all_users(current_user: dict = Depends(require_admin)):
         user["permissions"] = get_user_permissions(user)
     return users
 
+
+@api_router.post("/users/invite")
+async def invite_user(user_data: UserInvite, current_user: dict = Depends(require_admin)):
+    """Create a new user invitation (Admin only)"""
+    # Check if user already exists
+    existing_user = await db.users.find_one({"email": user_data.email})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="User with this email already exists")
+    
+    # Validate role
+    if user_data.role not in [r.value for r in UserRole]:
+        raise HTTPException(status_code=400, detail="Invalid role")
+    
+    # Validate custom permissions if provided
+    if user_data.custom_permissions:
+        valid_permissions = [p.value for p in Permission]
+        for perm in user_data.custom_permissions:
+            if perm not in valid_permissions:
+                raise HTTPException(status_code=400, detail=f"Invalid permission: {perm}")
+    
+    # Generate activation token (valid for 7 days)
+    activation_token = str(uuid.uuid4())
+    token_expires = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+    
+    # Create user without password
+    user = User(
+        username=user_data.username,
+        email=user_data.email,
+        hashed_password=None,
+        role=user_data.role,
+        custom_permissions=user_data.custom_permissions,
+        language=user_data.language,
+        is_active=False,
+        activation_token=activation_token,
+        activation_token_expires=token_expires
+    )
+    
+    await db.users.insert_one(user.model_dump())
+    
+    # Initialize predefined categories for new user
+    await initialize_predefined_categories(user.id)
+    
+    # Return activation link
+    base_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+    activation_link = f"{base_url}/set-password?token={activation_token}"
+    
+    return {
+        "message": "User invitation created successfully",
+        "user_id": user.id,
+        "activation_token": activation_token,
+        "activation_link": activation_link,
+        "expires_at": token_expires
+    }
+
+
 @api_router.get("/users/{user_id}", response_model=Dict[str, Any])
 async def get_user(user_id: str, current_user: dict = Depends(require_admin)):
     """Get specific user (Admin only)"""
