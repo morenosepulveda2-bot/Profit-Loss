@@ -38,8 +38,21 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await axios.get(`${API}/profile/permissions`);
       setPermissions(response.data.permissions || []);
+      
+      // Update localStorage with latest user data including role and language
+      const updatedUser = {
+        id: response.data.user_id,
+        username: response.data.username,
+        email: response.data.email,
+        role: response.data.role,
+        language: response.data.language
+      };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
     } catch (error) {
       console.error('Error fetching permissions:', error);
+      // If error fetching permissions, set default permissions for backward compatibility
+      setPermissions([]);
     }
   };
 
