@@ -272,7 +272,8 @@ async def create_category(category_data: CategoryCreate, current_user: dict = De
         user_id=current_user["id"],
         name=category_data.name,
         type=category_data.type,
-        is_predefined=False
+        is_predefined=False,
+        is_cogs=category_data.is_cogs if category_data.type == "expense" else False
     )
     await db.categories.insert_one(category.model_dump())
     return category
