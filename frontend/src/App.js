@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import { Toaster } from './components/ui/sonner';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
@@ -10,6 +12,7 @@ import ExpensesPage from './pages/ExpensesPage';
 import CategoriesPage from './pages/CategoriesPage';
 import ReportsPage from './pages/ReportsPage';
 import BankReconciliationPage from './pages/BankReconciliationPage';
+import UsersPage from './pages/UsersPage';
 import Layout from './components/Layout';
 import './App.css';
 
@@ -28,30 +31,8 @@ axios.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-function App() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
-    if (token && userData) {
-      setUser(JSON.parse(userData));
-    }
-    setLoading(false);
-  }, []);
-
-  const handleLogin = (token, userData) => {
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
-  };
+function AppRoutes() {
+  const { user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -62,38 +43,73 @@ function App() {
   }
 
   return (
-    <div className="App">
-      <Toaster position="top-right" />
-      <BrowserRouter>
-        <Routes>
-          <Route
-            path="/login"
-            element={
-              user ? <Navigate to="/" /> : <LoginPage onLogin={handleLogin} />
-            }
-          />
-          <Route
-            path="/register"
-            element={
-              user ? <Navigate to="/" /> : <RegisterPage onLogin={handleLogin} />
-            }
-          />
-          <Route
-            path="/"
-            element={
-              user ? <Layout user={user} onLogout={handleLogout} /> : <Navigate to="/login" />
-            }
-          >
-            <Route index element={<DashboardPage />} />
-            <Route path="sales" element={<SalesPage />} />
-            <Route path="expenses" element={<ExpensesPage />} />
-            <Route path="categories" element={<CategoriesPage />} />
-            <Route path="reports" element={<ReportsPage />} />
-            <Route path="bank-reconciliation" element={<BankReconciliationPage />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route
+          path="/login"
+          element={user ? <Navigate to="/" /> : <LoginPage />}
+        />
+        <Route
+          path="/register"
+          element={user ? <Navigate to="/" /> : <RegisterPage />}
+        />
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={
+            <ProtectedRoute requiredPermission="view_dashboard">
+              <DashboardPage />
+            </ProtectedRoute>
+          } />
+          <Route path="sales" element={
+            <ProtectedRoute requiredPermission="view_sales">
+              <SalesPage />
+            </ProtectedRoute>
+          } />
+          <Route path="expenses" element={
+            <ProtectedRoute requiredPermission="view_expenses">
+              <ExpensesPage />
+            </ProtectedRoute>
+          } />
+          <Route path="categories" element={
+            <ProtectedRoute requiredPermission="view_categories">
+              <CategoriesPage />
+            </ProtectedRoute>
+          } />
+          <Route path="reports" element={
+            <ProtectedRoute requiredPermission="view_reports">
+              <ReportsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="bank-reconciliation" element={
+            <ProtectedRoute requiredPermission="view_bank_reconciliation">
+              <BankReconciliationPage />
+            </ProtectedRoute>
+          } />
+          <Route path="users" element={
+            <ProtectedRoute requiredPermission="manage_users">
+              <UsersPage />
+            </ProtectedRoute>
+          } />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <div className="App">
+        <Toaster position="top-right" />
+        <AppRoutes />
+      </div>
+    </AuthProvider>
   );
 }
 
