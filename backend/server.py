@@ -453,7 +453,15 @@ async def register(user_data: UserCreate):
 @api_router.post("/auth/login", response_model=Token)
 async def login(user_data: UserLogin):
     user = await db.users.find_one({"email": user_data.email}, {"_id": 0})
-    if not user or not verify_password(user_data.password, user["hashed_password"]):
+    if not user:
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
+    
+    # Check if user is active
+    if not user.get("is_active", True):  # Default to True for existing users
+        raise HTTPException(status_code=401, detail="Account not activated. Please use your activation link to set a password.")
+    
+    # Check password
+    if not user.get("hashed_password") or not verify_password(user_data.password, user["hashed_password"]):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
     
     access_token = create_access_token(data={"sub": user["id"]})
@@ -464,7 +472,9 @@ async def login(user_data: UserLogin):
         "user": {
             "id": user["id"],
             "username": user["username"],
-            "email": user["email"]
+            "email": user["email"],
+            "role": user.get("role", "seller"),
+            "language": user.get("language", "en")
         }
     }
 
