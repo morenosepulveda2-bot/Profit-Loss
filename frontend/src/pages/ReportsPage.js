@@ -182,7 +182,7 @@ export default function ReportsPage() {
               </div>
               <p className="text-3xl font-bold mb-2">${reportData.summary.total_cogs.toFixed(2)}</p>
               <p className="text-orange-100 text-xs">
-                {reportData.summary.cogs_percentage.toFixed(1)}% de ventas
+                Ratio: {reportData.summary.cogs_percentage.toFixed(1)}%
               </p>
             </div>
 
