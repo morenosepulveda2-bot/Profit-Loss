@@ -163,44 +163,125 @@ export default function ReportsPage() {
       ) : reportData ? (
         <>
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-6 text-white shadow-lg">
               <div className="flex items-center gap-3 mb-2">
                 <TrendingUp size={24} />
-                <h3 className="text-lg font-semibold">Ingresos Totales</h3>
+                <h3 className="text-base font-semibold">Ingresos Totales</h3>
               </div>
-              <p className="text-4xl font-bold mb-2">${reportData.summary.total_income.toFixed(2)}</p>
-              <p className="text-emerald-100 text-sm">
-                Período: {reportData.start_date} a {reportData.end_date}
+              <p className="text-3xl font-bold mb-2">${reportData.summary.total_income.toFixed(2)}</p>
+              <p className="text-emerald-100 text-xs">
+                Base para cálculo de %
               </p>
             </div>
 
-            <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-6 text-white shadow-lg">
+            <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 text-white shadow-lg">
               <div className="flex items-center gap-3 mb-2">
                 <TrendingDown size={24} />
-                <h3 className="text-lg font-semibold">Gastos Totales</h3>
+                <h3 className="text-base font-semibold">COGS</h3>
               </div>
-              <p className="text-4xl font-bold mb-2">${reportData.summary.total_expenses.toFixed(2)}</p>
-              <p className="text-red-100 text-sm">
-                Período: {reportData.start_date} a {reportData.end_date}
+              <p className="text-3xl font-bold mb-2">${reportData.summary.total_cogs.toFixed(2)}</p>
+              <p className="text-orange-100 text-xs">
+                {reportData.summary.cogs_percentage.toFixed(1)}% de ventas
+              </p>
+            </div>
+
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg">
+              <div className="flex items-center gap-3 mb-2">
+                <Calendar size={24} />
+                <h3 className="text-base font-semibold">Ganancia Bruta</h3>
+              </div>
+              <p className="text-3xl font-bold mb-2">${reportData.summary.gross_profit.toFixed(2)}</p>
+              <p className="text-blue-100 text-xs">
+                Margen: {reportData.summary.gross_margin.toFixed(1)}%
               </p>
             </div>
 
             <div className={`bg-gradient-to-br rounded-xl p-6 text-white shadow-lg ${
               reportData.summary.net_profit >= 0 
-                ? 'from-blue-500 to-blue-600' 
-                : 'from-orange-500 to-orange-600'
+                ? 'from-purple-500 to-purple-600' 
+                : 'from-red-500 to-red-600'
             }`}>
               <div className="flex items-center gap-3 mb-2">
-                <Calendar size={24} />
-                <h3 className="text-lg font-semibold">Ganancia Neta</h3>
+                <TrendingDown size={24} />
+                <h3 className="text-base font-semibold">Ganancia Neta</h3>
               </div>
-              <p className="text-4xl font-bold mb-2">${reportData.summary.net_profit.toFixed(2)}</p>
-              <p className={reportData.summary.net_profit >= 0 ? 'text-blue-100' : 'text-orange-100'} className="text-sm">
-                Margen: {reportData.summary.total_income > 0 
-                  ? ((reportData.summary.net_profit / reportData.summary.total_income) * 100).toFixed(1)
-                  : '0'}%
+              <p className="text-3xl font-bold mb-2">${reportData.summary.net_profit.toFixed(2)}</p>
+              <p className={reportData.summary.net_profit >= 0 ? 'text-purple-100' : 'text-red-100'} className="text-xs">
+                Después de gastos
               </p>
+            </div>
+          </div>
+          
+          {/* COGS Breakdown */}
+          <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-6 border border-orange-200 shadow-sm">
+            <h3 className="text-xl font-bold text-slate-900 mb-4" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+              Desglose COGS vs Ventas
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-white rounded-lg p-4">
+                <h4 className="text-sm font-semibold text-slate-700 mb-3">Cálculo del Porcentaje</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Ventas Totales:</span>
+                    <span className="font-bold text-emerald-600">${reportData.summary.total_income.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">COGS:</span>
+                    <span className="font-bold text-orange-600">${reportData.summary.total_cogs.toFixed(2)}</span>
+                  </div>
+                  <div className="border-t pt-2 mt-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-600">% COGS:</span>
+                      <span className="font-bold text-lg text-orange-700">{reportData.summary.cogs_percentage.toFixed(2)}%</span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">
+                      (${reportData.summary.total_cogs.toFixed(2)} ÷ ${reportData.summary.total_income.toFixed(2)}) × 100
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-lg p-4">
+                <h4 className="text-sm font-semibold text-slate-700 mb-3">Visualización</h4>
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-slate-600">Ventas</span>
+                      <span className="font-medium">100%</span>
+                    </div>
+                    <div className="h-6 bg-emerald-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-emerald-500 flex items-center justify-center text-xs text-white font-medium" style={{ width: '100%' }}>
+                        ${reportData.summary.total_income.toFixed(0)}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-slate-600">COGS</span>
+                      <span className="font-medium">{reportData.summary.cogs_percentage.toFixed(1)}%</span>
+                    </div>
+                    <div className="h-6 bg-orange-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-orange-500 flex items-center justify-center text-xs text-white font-medium" style={{ width: `${Math.max(reportData.summary.cogs_percentage, 15)}%` }}>
+                        ${reportData.summary.total_cogs.toFixed(0)}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-slate-600">Ganancia Bruta</span>
+                      <span className="font-medium">{reportData.summary.gross_margin.toFixed(1)}%</span>
+                    </div>
+                    <div className="h-6 bg-blue-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-500 flex items-center justify-center text-xs text-white font-medium" style={{ width: `${Math.max(reportData.summary.gross_margin, 15)}%` }}>
+                        ${reportData.summary.gross_profit.toFixed(0)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
