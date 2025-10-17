@@ -593,6 +593,26 @@ export default function BankReconciliationPage() {
 
         {/* Bank Transactions Tab */}
         <TabsContent value="transactions" className="space-y-6">
+          {/* Info about validated transactions */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <FileText size={20} className="text-blue-700" />
+              </div>
+              <div>
+                <p className="font-semibold text-blue-900">
+                  💡 Las transacciones validadas se incluyen en tus reportes
+                </p>
+                <p className="text-sm text-blue-700">
+                  Una vez que validas y categorizas una transacción bancaria, se suma automáticamente a tus gastos/ingresos por categoría en el Dashboard y Reportes.
+                  {bankTransactions.filter(t => t.validated && t.category_id).length > 0 && (
+                    <span className="font-semibold"> Actualmente: {bankTransactions.filter(t => t.validated && t.category_id).length} transacciones validadas están siendo contabilizadas.</span>
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Unvalidated Transactions Alert */}
           {bankTransactions.filter(t => !t.validated).length > 0 && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
