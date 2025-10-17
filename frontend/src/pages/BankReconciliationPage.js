@@ -867,6 +867,74 @@ export default function BankReconciliationPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Validation Dialog */}
+      <Dialog open={validateDialogOpen} onOpenChange={setValidateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Validar y Categorizar Transacción</DialogTitle>
+          </DialogHeader>
+          {selectedTransaction && (
+            <div className="space-y-4">
+              <div className="bg-slate-50 p-4 rounded-lg">
+                <p className="text-sm text-slate-600">Fecha: {selectedTransaction.date}</p>
+                <p className="text-sm text-slate-600 mt-1">Descripción: {selectedTransaction.description}</p>
+                <p className="text-lg font-bold text-slate-900 mt-2">${selectedTransaction.amount.toFixed(2)}</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Tipo de Transacción</Label>
+                <Select value={validationType} onValueChange={setValidationType}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="debit">Débito (Salida de dinero)</SelectItem>
+                    <SelectItem value="credit">Crédito (Entrada de dinero)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Categoría (opcional)</Label>
+                <Select value={validationCategoryId} onValueChange={setValidationCategoryId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona una categoría" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Sin categoría</SelectItem>
+                    {validationType === 'debit' ? (
+                      <>
+                        {categories.filter(c => c.type === 'expense').map(cat => (
+                          <SelectItem key={cat.id} value={cat.id}>
+                            {cat.name} {cat.is_cogs ? '(COGS)' : ''}
+                          </SelectItem>
+                        ))}
+                      </>
+                    ) : (
+                      <>
+                        {categories.filter(c => c.type === 'income').map(cat => (
+                          <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                        ))}
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <p className="text-xs text-blue-800">
+                  💡 La categoría te ayudará a vincular esta transacción bancaria con tus gastos/ingresos registrados.
+                </p>
+              </div>
+
+              <Button onClick={handleValidateTransaction} className="w-full">
+                Validar y Guardar
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
