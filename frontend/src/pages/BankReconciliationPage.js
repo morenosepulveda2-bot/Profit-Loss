@@ -55,12 +55,14 @@ export default function BankReconciliationPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [checksRes, transactionsRes] = await Promise.all([
+      const [checksRes, transactionsRes, categoriesRes] = await Promise.all([
         axios.get(`${API}/checks`),
-        axios.get(`${API}/bank-transactions`)
+        axios.get(`${API}/bank-transactions`),
+        axios.get(`${API}/categories`)
       ]);
       setChecks(checksRes.data);
       setBankTransactions(transactionsRes.data);
+      setCategories(categoriesRes.data);
     } catch (error) {
       toast.error('Error al cargar datos');
     } finally {
