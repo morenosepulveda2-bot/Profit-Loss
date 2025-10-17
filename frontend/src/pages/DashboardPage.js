@@ -86,7 +86,10 @@ export default function DashboardPage() {
           <p className="text-sm text-slate-600 mb-1">COGS (Costo de Ventas)</p>
           <p className="text-3xl font-bold text-orange-600">${summary?.total_cogs?.toFixed(2) || '0.00'}</p>
           <p className="text-xs text-slate-500 mt-1">
-            {summary?.cogs_percentage?.toFixed(1) || '0.0'}% de ventas
+            {summary?.cogs_percentage?.toFixed(1) || '0.0'}% del total de ventas
+          </p>
+          <p className="text-xs text-slate-400 mt-0.5">
+            (${summary?.total_cogs?.toFixed(2) || '0.00'} ÷ ${summary?.total_income?.toFixed(2) || '0.00'} × 100)
           </p>
         </div>
 
