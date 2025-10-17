@@ -1137,12 +1137,6 @@ class ProfitLossAPITester:
         print("🚀 Starting Profit & Loss API Tests...")
         print(f"Testing against: {self.base_url}")
         
-        # Test COGS calculation with existing user first (main focus)
-        print("\n" + "="*60)
-        print("🎯 PRIORITY: Testing COGS Calculation Fix")
-        print("="*60)
-        self.test_cogs_calculation_with_existing_user()
-        
         # Authentication tests
         if not self.test_user_registration():
             print("❌ Registration failed, stopping tests")
@@ -1154,6 +1148,29 @@ class ProfitLossAPITester:
         if not self.test_user_login():
             print("❌ Login failed, stopping tests")
             return self.generate_summary()
+        
+        # ============ NEW: RBAC and Multi-Language Tests ============
+        print("\n" + "="*70)
+        print("🔐 PRIORITY: Role-Based Access Control & Multi-Language Tests")
+        print("="*70)
+        
+        # User profile and permissions tests
+        self.test_user_profile_permissions()
+        self.test_language_management()
+        
+        # Admin-only endpoints tests
+        self.test_roles_info()
+        self.test_permissions_info()
+        self.test_admin_user_management()
+        
+        # Permission-based access control tests
+        self.test_permission_based_access_control()
+        self.test_role_permissions_mapping()
+        
+        # ============ Original Tests (for regression) ============
+        print("\n" + "="*60)
+        print("📊 Regression Tests - Core Functionality")
+        print("="*60)
         
         # Category tests
         self.test_get_categories()
@@ -1184,6 +1201,12 @@ class ProfitLossAPITester:
         
         # CSV import test
         self.test_csv_import()
+        
+        # Test COGS calculation with existing user (regression)
+        print("\n" + "="*60)
+        print("🎯 COGS Calculation Regression Test")
+        print("="*60)
+        self.test_cogs_calculation_with_existing_user()
         
         # Cleanup tests
         self.test_delete_operations()
