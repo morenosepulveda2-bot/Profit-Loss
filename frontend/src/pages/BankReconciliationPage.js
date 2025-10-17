@@ -420,8 +420,8 @@ export default function BankReconciliationPage() {
                 <FileText size={16} className="mr-2" />
                 Reporte de Cheques en Tránsito
               </Button>
-
-            <Dialog open={checkDialogOpen} onOpenChange={setCheckDialogOpen}>
+              
+              <Dialog open={checkDialogOpen} onOpenChange={setCheckDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="bg-emerald-600 hover:bg-emerald-700" data-testid="add-check-button">
                   <Plus size={16} className="mr-2" />
