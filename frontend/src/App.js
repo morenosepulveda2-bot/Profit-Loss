@@ -97,6 +97,11 @@ function AppRoutes() {
               <BankReconciliationPage />
             </ProtectedRoute>
           } />
+          <Route path="purchase-orders" element={
+            <ProtectedRoute requiredPermission="view_purchase_orders">
+              <PurchaseOrdersPage />
+            </ProtectedRoute>
+          } />
           <Route path="users" element={
             <ProtectedRoute requiredPermission="manage_users">
               <UsersPage />
