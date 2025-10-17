@@ -518,11 +518,36 @@ async def debug_cogs(current_user: dict = Depends(get_current_user)):
     categories = await db.categories.find({"user_id": current_user["id"]}, {"_id": 0}).to_list(1000)
     expenses = await db.expenses.find({"user_id": current_user["id"]}, {"_id": 0}).to_list(10000)
     
+    # Get validated bank transactions
+    bank_transactions = await db.bank_transactions.find({
+        "user_id": current_user["id"],
+        "validated": True,
+        "category_id": {"$ne": None, "$exists": True}
+    }, {"_id": 0}).to_list(10000)
+    
     cogs_categories = [cat for cat in categories if cat.get("is_cogs", False)]
     cogs_category_ids = {cat["id"] for cat in cogs_categories}
     
+    # COGS from expenses
     cogs_expenses = [exp for exp in expenses if exp["category_id"] in cogs_category_ids]
-    total_cogs = sum(exp["amount"] for exp in cogs_expenses)
+    total_cogs_from_expenses = sum(exp["amount"] for exp in cogs_expenses)
+    
+    # COGS from bank transactions
+    cogs_bank_transactions = [
+        trans for trans in bank_transactions 
+        if trans["type"] == "debit" and trans.get("category_id") in cogs_category_ids
+    ]
+    total_cogs_from_bank = sum(trans["amount"] for trans in cogs_bank_transactions)
+    
+    # Build category map
+    cat_map = {cat["id"]: cat["name"] for cat in categories}
+    
+    # All bank transactions with categories
+    bank_trans_with_cats = [
+        {**trans, "category_name": cat_map.get(trans.get("category_id"), "Unknown")}
+        for trans in bank_transactions
+        if trans.get("category_id")
+    ]
     
     return {
         "total_categories": len(categories),
@@ -530,7 +555,12 @@ async def debug_cogs(current_user: dict = Depends(get_current_user)):
         "cogs_category_ids": list(cogs_category_ids),
         "total_expenses": len(expenses),
         "cogs_expenses": cogs_expenses,
-        "total_cogs": total_cogs
+        "total_cogs_from_expenses": total_cogs_from_expenses,
+        "total_bank_transactions": len(bank_transactions),
+        "bank_transactions_with_categories": bank_trans_with_cats,
+        "cogs_bank_transactions": cogs_bank_transactions,
+        "total_cogs_from_bank": total_cogs_from_bank,
+        "total_cogs": total_cogs_from_expenses + total_cogs_from_bank
     }
 
 @api_router.get("/dashboard/summary", response_model=DashboardSummary)
