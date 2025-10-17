@@ -10,6 +10,7 @@ export default function Layout({ user, onLogout }) {
     { name: 'Gastos', path: '/expenses', icon: TrendingDown },
     { name: 'Categorías', path: '/categories', icon: FolderOpen },
     { name: 'Reportes', path: '/reports', icon: FileText },
+    { name: 'Conciliación Bancaria', path: '/bank-reconciliation', icon: Building2 },
   ];
 
   return (
