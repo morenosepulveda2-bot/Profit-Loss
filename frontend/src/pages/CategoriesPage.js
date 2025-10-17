@@ -249,6 +249,11 @@ export default function CategoriesPage() {
                       Predefinida
                     </span>
                   )}
+                  {category.is_cogs && (
+                    <span className="text-xs px-2 py-1 bg-orange-100 text-orange-700 rounded-full">
+                      COGS
+                    </span>
+                  )}
                 </div>
                 {!category.is_predefined && (
                   <div className="flex gap-1">
