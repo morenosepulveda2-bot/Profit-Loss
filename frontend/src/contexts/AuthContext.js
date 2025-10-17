@@ -13,21 +13,25 @@ export const AuthProvider = ({ children }) => {
   const { i18n } = useTranslation();
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
-    if (token && userData) {
-      const parsedUser = JSON.parse(userData);
-      setUser(parsedUser);
-      
-      // Set language from user preferences
-      if (parsedUser.language) {
-        i18n.changeLanguage(parsedUser.language);
+    const initAuth = async () => {
+      const token = localStorage.getItem('token');
+      const userData = localStorage.getItem('user');
+      if (token && userData) {
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+        
+        // Set language from user preferences
+        if (parsedUser.language) {
+          i18n.changeLanguage(parsedUser.language);
+        }
+        
+        // Fetch user permissions
+        await fetchPermissions();
       }
-      
-      // Fetch user permissions
-      fetchPermissions();
-    }
-    setLoading(false);
+      setLoading(false);
+    };
+    
+    initAuth();
   }, [i18n]);
 
   const fetchPermissions = async () => {
