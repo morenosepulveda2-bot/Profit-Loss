@@ -1093,7 +1093,7 @@ async def upload_bank_statement(
                                 check_number=check_number
                             )
                             transactions.append(transaction.model_dump())
-                            logger.info(f"Parsed transaction: {date_formatted} {trans_type} ${amount} - {description[:50]}")
+                            logger.info(f"✓ Transaction #{len(transactions)}: {date_formatted} | {trans_type.upper()} | ${amount} | {description[:50]}")
                             
                         except Exception as parse_error:
                             logger.warning(f"Error parsing line: {line[:100]} - {str(parse_error)}")
