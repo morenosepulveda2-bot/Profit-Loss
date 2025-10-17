@@ -923,60 +923,137 @@ async def upload_bank_statement(
         with open(pdf_path, "wb") as f:
             f.write(contents)
         
+        logger.info(f"Processing PDF: {file.filename}")
+        
         # Extract text from PDF
         transactions = []
+        all_text = ""
+        
         with pdfplumber.open(pdf_path) as pdf:
-            for page in pdf.pages:
+            logger.info(f"PDF has {len(pdf.pages)} pages")
+            for page_num, page in enumerate(pdf.pages):
                 text = page.extract_text()
+                all_text += text + "\n"
+                logger.info(f"Page {page_num + 1} extracted")
                 
-                # Try to parse transactions (this is a basic parser, may need adjustment)
+                # Try multiple patterns for different bank formats
                 lines = text.split('\n')
                 for line in lines:
-                    # Look for patterns like: date amount description
-                    # Example: 12/15/2024 -500.00 CHECK #1234
-                    match = re.search(r'(\d{1,2}/\d{1,2}/\d{4})\s+([-+]?\$?[\d,]+\.?\d*)\s+(.+)', line)
+                    line = line.strip()
+                    if not line:
+                        continue
+                    
+                    # Pattern 1: MM/DD/YYYY amount description
+                    match1 = re.search(r'(\d{1,2}/\d{1,2}/\d{2,4})\s+([-+]?\$?[\d,]+\.?\d{2})\s+(.+)', line)
+                    
+                    # Pattern 2: YYYY-MM-DD amount description
+                    match2 = re.search(r'(\d{4}-\d{1,2}-\d{1,2})\s+([-+]?\$?[\d,]+\.?\d{2})\s+(.+)', line)
+                    
+                    # Pattern 3: DD/MM/YYYY amount description
+                    match3 = re.search(r'(\d{1,2}/\d{1,2}/\d{2,4})\s+(.+?)\s+([-+]?\$?[\d,]+\.?\d{2})', line)
+                    
+                    # Pattern 4: Description with amount at end
+                    match4 = re.search(r'(.+?)\s+(\d{1,2}/\d{1,2}/\d{2,4})\s+([-+]?\$?[\d,]+\.?\d{2})', line)
+                    
+                    match = match1 or match2 or match3 or match4
+                    
                     if match:
-                        date_str, amount_str, description = match.groups()
-                        
-                        # Parse amount
-                        amount = float(amount_str.replace('$', '').replace(',', ''))
-                        trans_type = "debit" if amount < 0 else "credit"
-                        amount = abs(amount)
-                        
-                        # Extract check number if present
-                        check_match = re.search(r'CHECK #?(\d+)', description, re.IGNORECASE)
-                        check_number = check_match.group(1) if check_match else None
-                        
-                        # Convert date
                         try:
-                            date_obj = datetime.strptime(date_str, "%m/%d/%Y")
-                            date_formatted = date_obj.strftime("%Y-%m-%d")
-                        except:
+                            groups = match.groups()
+                            
+                            # Identify which pattern matched
+                            if match1:
+                                date_str, amount_str, description = groups
+                            elif match2:
+                                date_str, amount_str, description = groups
+                            elif match3:
+                                date_str, description, amount_str = groups
+                            elif match4:
+                                description, date_str, amount_str = groups
+                            else:
+                                continue
+                            
+                            # Parse amount
+                            amount_clean = amount_str.replace('$', '').replace(',', '').replace(' ', '')
+                            
+                            # Determine if debit or credit
+                            if '-' in amount_clean or '(' in amount_str:
+                                trans_type = "debit"
+                                amount = abs(float(amount_clean.replace('-', '').replace('(', '').replace(')', '')))
+                            else:
+                                # Check if it's explicitly marked as credit/debit in description
+                                if any(word in description.upper() for word in ['DEPOSIT', 'CREDIT', 'DEPOSITO']):
+                                    trans_type = "credit"
+                                else:
+                                    trans_type = "debit"
+                                amount = abs(float(amount_clean))
+                            
+                            # Extract check number if present
+                            check_patterns = [
+                                r'CHECK\s*#?(\d+)',
+                                r'CHK\s*#?(\d+)',
+                                r'CHEQUE\s*#?(\d+)',
+                                r'#(\d{4,})'
+                            ]
+                            check_number = None
+                            for pattern in check_patterns:
+                                check_match = re.search(pattern, description, re.IGNORECASE)
+                                if check_match:
+                                    check_number = check_match.group(1)
+                                    break
+                            
+                            # Convert date - try multiple formats
+                            date_formatted = None
+                            date_formats = ["%m/%d/%Y", "%m/%d/%y", "%Y-%m-%d", "%d/%m/%Y", "%d/%m/%y"]
+                            for date_format in date_formats:
+                                try:
+                                    date_obj = datetime.strptime(date_str, date_format)
+                                    date_formatted = date_obj.strftime("%Y-%m-%d")
+                                    break
+                                except:
+                                    continue
+                            
+                            if not date_formatted:
+                                logger.warning(f"Could not parse date: {date_str}")
+                                continue
+                            
+                            transaction = BankTransaction(
+                                user_id=current_user["id"],
+                                statement_id="",
+                                date=date_formatted,
+                                description=description.strip()[:200],  # Limit description length
+                                amount=amount,
+                                type=trans_type,
+                                check_number=check_number
+                            )
+                            transactions.append(transaction.model_dump())
+                            logger.info(f"Parsed transaction: {date_formatted} {trans_type} ${amount} - {description[:50]}")
+                            
+                        except Exception as parse_error:
+                            logger.warning(f"Error parsing line: {line[:100]} - {str(parse_error)}")
                             continue
-                        
-                        transaction = BankTransaction(
-                            user_id=current_user["id"],
-                            statement_id="",
-                            date=date_formatted,
-                            description=description.strip(),
-                            amount=amount,
-                            type=trans_type,
-                            check_number=check_number
-                        )
-                        transactions.append(transaction.model_dump())
+        
+        logger.info(f"Total transactions extracted: {len(transactions)}")
+        
+        # Save extracted text for debugging
+        debug_path = f"/tmp/{file.filename}_debug.txt"
+        with open(debug_path, "w") as f:
+            f.write(all_text)
+        logger.info(f"Saved debug text to: {debug_path}")
         
         # Create statement record
         statement = BankStatement(
             user_id=current_user["id"],
             filename=file.filename,
-            period_start=period_start,
-            period_end=period_end,
+            period_start=period_start if period_start else datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+            period_end=period_end if period_end else datetime.now(timezone.utc).strftime("%Y-%m-%d"),
             starting_balance=starting_balance,
             ending_balance=ending_balance,
             transactions_count=len(transactions)
         )
         
         await db.bank_statements.insert_one(statement.model_dump())
+        logger.info(f"Statement saved with ID: {statement.id}")
         
         # Update transactions with statement_id
         for trans in transactions:
@@ -985,15 +1062,17 @@ async def upload_bank_statement(
         # Insert transactions
         if transactions:
             await db.bank_transactions.insert_many(transactions)
+            logger.info(f"Inserted {len(transactions)} transactions")
         
         return {
-            "message": f"Statement uploaded successfully. Extracted {len(transactions)} transactions",
+            "message": f"Estado de cuenta procesado. Se extrajeron {len(transactions)} transacciones.",
             "statement_id": statement.id,
-            "transactions_count": len(transactions)
+            "transactions_count": len(transactions),
+            "debug_info": f"Se extrajo texto de {len(all_text)} caracteres. Si no se encontraron transacciones, el formato del PDF puede no ser compatible."
         }
     except Exception as e:
-        logger.error(f"Error uploading bank statement: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Error processing PDF: {str(e)}")
+        logger.error(f"Error uploading bank statement: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=400, detail=f"Error al procesar PDF: {str(e)}")
 
 # Include the router in the main app
 app.include_router(api_router)
