@@ -225,6 +225,47 @@ export default function BankReconciliationPage() {
     }
   };
 
+  const handleDeleteTransaction = async (transactionId) => {
+    if (window.confirm('¿Eliminar esta transacción?')) {
+      try {
+        await axios.delete(`${API}/bank-transactions/${transactionId}`);
+        toast.success('Transacción eliminada');
+        fetchData();
+      } catch (error) {
+        toast.error('Error al eliminar transacción');
+      }
+    }
+  };
+
+  const handleOpenValidateDialog = (transaction) => {
+    setSelectedTransaction(transaction);
+    setValidationType(transaction.type);
+    setValidationCategoryId(transaction.category_id || '');
+    setValidateDialogOpen(true);
+  };
+
+  const handleValidateTransaction = async () => {
+    if (!selectedTransaction) return;
+
+    try {
+      await axios.post(
+        `${API}/bank-transactions/${selectedTransaction.id}/validate?transaction_type=${validationType}${validationCategoryId ? `&category_id=${validationCategoryId}` : ''}`
+      );
+      toast.success('Transacción validada y categorizada');
+      setValidateDialogOpen(false);
+      setSelectedTransaction(null);
+      fetchData();
+    } catch (error) {
+      toast.error('Error al validar transacción');
+    }
+  };
+
+  const getCategoryName = (categoryId) => {
+    if (!categoryId) return '-';
+    const category = categories.find(c => c.id === categoryId);
+    return category?.name || 'Desconocida';
+  };
+
   const handleDownloadInTransitReport = async () => {
     try {
       const response = await axios.get(`${API}/checks/in-transit-report`);
