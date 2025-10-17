@@ -141,6 +141,24 @@ export default function CategoriesPage() {
                   </SelectContent>
                 </Select>
               </div>
+              {formData.type === 'expense' && (
+                <div className="flex items-center space-x-2 p-3 bg-orange-50 rounded-lg">
+                  <Checkbox 
+                    id="is_cogs" 
+                    checked={formData.is_cogs}
+                    onCheckedChange={(checked) => setFormData({...formData, is_cogs: checked})}
+                    data-testid="category-cogs-checkbox"
+                  />
+                  <div className="flex flex-col">
+                    <Label htmlFor="is_cogs" className="cursor-pointer font-medium">
+                      Es Costo de Ventas (COGS)
+                    </Label>
+                    <p className="text-xs text-slate-600">
+                      Marca si esta categoría representa costos directos de ventas
+                    </p>
+                  </div>
+                </div>
+              )}
               <Button type="submit" className="w-full" data-testid="category-submit-button">
                 {editingCategory ? 'Actualizar' : 'Crear'}
               </Button>
