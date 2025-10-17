@@ -248,8 +248,12 @@ export default function BankReconciliationPage() {
     if (!selectedTransaction) return;
 
     try {
+      const categoryParam = (validationCategoryId && validationCategoryId !== 'none') 
+        ? `&category_id=${validationCategoryId}` 
+        : '';
+      
       await axios.post(
-        `${API}/bank-transactions/${selectedTransaction.id}/validate?transaction_type=${validationType}${validationCategoryId ? `&category_id=${validationCategoryId}` : ''}`
+        `${API}/bank-transactions/${selectedTransaction.id}/validate?transaction_type=${validationType}${categoryParam}`
       );
       toast.success('Transacción validada y categorizada');
       setValidateDialogOpen(false);
