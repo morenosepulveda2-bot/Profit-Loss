@@ -216,11 +216,11 @@ export default function ReportsPage() {
           {/* COGS Breakdown */}
           <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-6 border border-orange-200 shadow-sm">
             <h3 className="text-xl font-bold text-slate-900 mb-4" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-              Desglose COGS vs Ventas
+              Desglose % COGS vs Ventas
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-white rounded-lg p-4">
-                <h4 className="text-sm font-semibold text-slate-700 mb-3">Cálculo del Ratio COGS</h4>
+                <h4 className="text-sm font-semibold text-slate-700 mb-3">Cálculo del % COGS</h4>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-slate-600">Ventas Totales:</span>
