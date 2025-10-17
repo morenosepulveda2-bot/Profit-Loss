@@ -906,6 +906,33 @@ async def get_reconciliation_report(
     )
 
 # PDF Upload and parse
+@api_router.post("/bank-statements/extract-text")
+async def extract_text_from_pdf(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """Extract raw text from PDF for manual review"""
+    try:
+        contents = await file.read()
+        pdf_path = f"/tmp/{file.filename}"
+        with open(pdf_path, "wb") as f:
+            f.write(contents)
+        
+        all_text = ""
+        with pdfplumber.open(pdf_path) as pdf:
+            for page in pdf.pages:
+                text = page.extract_text()
+                all_text += f"=== Página {pdf.pages.index(page) + 1} ===\n{text}\n\n"
+        
+        return {
+            "filename": file.filename,
+            "text": all_text,
+            "pages": len(all_text.split("=== Página"))
+        }
+    except Exception as e:
+        logger.error(f"Error extracting text: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Error al extraer texto: {str(e)}")
+
 @api_router.post("/bank-statements/upload")
 async def upload_bank_statement(
     file: UploadFile = File(...),
