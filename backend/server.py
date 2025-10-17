@@ -671,8 +671,21 @@ async def get_month_comparison(
             "date": {"$gte": month_start, "$lte": month_end}
         }, {"_id": 0}).to_list(10000)
         
+        # Include validated bank transactions
+        bank_transactions = await db.bank_transactions.find({
+            "user_id": current_user["id"],
+            "validated": True,
+            "category_id": {"$ne": None, "$exists": True},
+            "date": {"$gte": month_start, "$lte": month_end}
+        }, {"_id": 0}).to_list(10000)
+        
         income = sum(sale["amount"] for sale in sales)
+        # Add credit bank transactions
+        income += sum(trans["amount"] for trans in bank_transactions if trans["type"] == "credit")
+        
         expense_total = sum(expense["amount"] for expense in expenses)
+        # Add debit bank transactions
+        expense_total += sum(trans["amount"] for trans in bank_transactions if trans["type"] == "debit")
         profit = income - expense_total
         
         # Calculate growth percentage
