@@ -64,6 +64,8 @@ ROLE_PERMISSIONS = {
         Permission.VIEW_REPORTS.value,
         Permission.VIEW_BANK_RECONCILIATION.value,
         Permission.MANAGE_BANK_RECONCILIATION.value,
+        Permission.VIEW_PURCHASE_ORDERS.value,
+        Permission.MANAGE_PURCHASE_ORDERS.value,
     ],
     UserRole.ACCOUNTANT: [
         Permission.VIEW_DASHBOARD.value,
@@ -73,6 +75,8 @@ ROLE_PERMISSIONS = {
         Permission.VIEW_REPORTS.value,
         Permission.VIEW_BANK_RECONCILIATION.value,
         Permission.MANAGE_BANK_RECONCILIATION.value,
+        Permission.VIEW_PURCHASE_ORDERS.value,
+        Permission.MANAGE_PURCHASE_ORDERS.value,
     ],
     UserRole.SELLER: [
         Permission.VIEW_DASHBOARD.value,
