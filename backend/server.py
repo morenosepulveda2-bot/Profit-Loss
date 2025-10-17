@@ -142,6 +142,75 @@ class MonthComparison(BaseModel):
     profit: float
     growth_percentage: Optional[float] = None
 
+class CheckStatus(str, Enum):
+    PENDING = "pending"  # Cheque emitido, no cobrado
+    CLEARED = "cleared"  # Cheque cobrado (matched con banco)
+    CANCELLED = "cancelled"  # Cheque cancelado
+
+class Check(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    check_number: str
+    date_issued: str
+    amount: float
+    payee: str  # A favor de
+    description: Optional[str] = None
+    status: str = CheckStatus.PENDING
+    date_cleared: Optional[str] = None
+    bank_transaction_id: Optional[str] = None
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class CheckCreate(BaseModel):
+    check_number: str
+    date_issued: str
+    amount: float
+    payee: str
+    description: Optional[str] = None
+
+class BankTransaction(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    statement_id: str
+    date: str
+    description: str
+    amount: float
+    type: str  # "debit" or "credit"
+    check_number: Optional[str] = None
+    matched_check_id: Optional[str] = None
+    matched_expense_id: Optional[str] = None
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class BankTransactionCreate(BaseModel):
+    date: str
+    description: str
+    amount: float
+    type: str
+    check_number: Optional[str] = None
+
+class BankStatement(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    filename: str
+    period_start: str
+    period_end: str
+    starting_balance: float
+    ending_balance: float
+    transactions_count: int
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class ReconciliationReport(BaseModel):
+    statement_balance: float
+    book_balance: float
+    outstanding_checks: List[Check]
+    deposits_in_transit: List[Dict[str, Any]]
+    outstanding_checks_total: float
+    deposits_in_transit_total: float
+    reconciled_balance: float
+    difference: float
+
 # ============ Helper Functions ============
 
 def hash_password(password: str) -> str:
