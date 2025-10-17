@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API } from '../App';
-import { Plus, Upload, FileText, Check, X, RefreshCw, DollarSign, TrendingDown, TrendingUp } from 'lucide-react';
+import { Plus, Upload, FileText, Check, X, RefreshCw, DollarSign, TrendingDown, TrendingUp, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
