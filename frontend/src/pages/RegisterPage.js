@@ -1,13 +1,17 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
+import { useAuth } from '../contexts/AuthContext';
 import { API } from '../App';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 
-export default function RegisterPage({ onLogin }) {
+export default function RegisterPage() {
+  const { t } = useTranslation();
+  const { login } = useAuth();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,11 +30,11 @@ export default function RegisterPage({ onLogin }) {
       });
 
       const { access_token, user } = response.data;
-      onLogin(access_token, user);
-      toast.success('¡Cuenta creada exitosamente!');
+      await login(access_token, user);
+      toast.success(t('auth.registerSuccess'));
       navigate('/');
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Error al registrarse');
+      toast.error(error.response?.data?.detail || t('errors.somethingWentWrong'));
     } finally {
       setLoading(false);
     }
@@ -42,70 +46,63 @@ export default function RegisterPage({ onLogin }) {
         <div className="bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-slate-900 mb-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-              Crear Cuenta
+              Profit & Loss
             </h1>
-            <p className="text-slate-600">Comienza a gestionar tus finanzas hoy</p>
+            <p className="text-slate-600">{t('dashboard.subtitle')}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="username">Nombre de Usuario</Label>
+              <Label htmlFor="username">{t('auth.username')}</Label>
               <Input
                 id="username"
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                data-testid="register-username-input"
                 required
-                placeholder="Tu nombre"
+                className="w-full"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Correo Electrónico</Label>
+              <Label htmlFor="email">{t('auth.email')}</Label>
               <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                data-testid="register-email-input"
                 required
-                placeholder="tu@email.com"
+                className="w-full"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
+              <Label htmlFor="password">{t('auth.password')}</Label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                data-testid="register-password-input"
                 required
-                placeholder="••••••••"
-                minLength={6}
+                className="w-full"
               />
             </div>
 
             <Button
               type="submit"
-              className="w-full bg-emerald-600 hover:bg-emerald-700"
               disabled={loading}
-              data-testid="register-submit-button"
+              className="w-full bg-emerald-600 hover:bg-emerald-700"
             >
-              {loading ? 'Creando cuenta...' : 'Registrarse'}
+              {loading ? t('common.loading') : t('auth.registerButton')}
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-slate-600">
-              ¿Ya tienes cuenta?{' '}
-              <Link to="/login" className="text-emerald-600 hover:text-emerald-700 font-medium">
-                Inicia sesión
-              </Link>
-            </p>
-          </div>
+          <p className="text-center text-sm text-slate-600 mt-6">
+            {t('auth.alreadyHaveAccount')}{' '}
+            <Link to="/login" className="text-emerald-600 hover:text-emerald-700 font-medium">
+              {t('auth.loginButton')}
+            </Link>
+          </p>
         </div>
       </div>
     </div>

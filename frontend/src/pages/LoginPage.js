@@ -1,13 +1,17 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
+import { useAuth } from '../contexts/AuthContext';
 import { API } from '../App';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 
-export default function LoginPage({ onLogin }) {
+export default function LoginPage() {
+  const { t } = useTranslation();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,11 +28,11 @@ export default function LoginPage({ onLogin }) {
       });
 
       const { access_token, user } = response.data;
-      onLogin(access_token, user);
-      toast.success('¡Inicio de sesión exitoso!');
+      await login(access_token, user);
+      toast.success(t('auth.loginSuccess'));
       navigate('/');
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Error al iniciar sesión');
+      toast.error(error.response?.data?.detail || t('errors.somethingWentWrong'));
     } finally {
       setLoading(false);
     }
@@ -42,54 +46,49 @@ export default function LoginPage({ onLogin }) {
             <h1 className="text-4xl font-bold text-slate-900 mb-2" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
               Profit & Loss
             </h1>
-            <p className="text-slate-600">Gestiona tus finanzas de manera inteligente</p>
+            <p className="text-slate-600">{t('dashboard.subtitle')}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="email">Correo Electrónico</Label>
+              <Label htmlFor="email">{t('auth.email')}</Label>
               <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                data-testid="login-email-input"
                 required
-                placeholder="tu@email.com"
+                className="w-full"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
+              <Label htmlFor="password">{t('auth.password')}</Label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                data-testid="login-password-input"
                 required
-                placeholder="••••••••"
+                className="w-full"
               />
             </div>
 
             <Button
               type="submit"
-              className="w-full bg-emerald-600 hover:bg-emerald-700"
               disabled={loading}
-              data-testid="login-submit-button"
+              className="w-full bg-emerald-600 hover:bg-emerald-700"
             >
-              {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+              {loading ? t('common.loading') : t('auth.loginButton')}
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-slate-600">
-              ¿No tienes cuenta?{' '}
-              <Link to="/register" className="text-emerald-600 hover:text-emerald-700 font-medium">
-                Regístrate aquí
-              </Link>
-            </p>
-          </div>
+          <p className="text-center text-sm text-slate-600 mt-6">
+            {t('auth.dontHaveAccount')}{' '}
+            <Link to="/register" className="text-emerald-600 hover:text-emerald-700 font-medium">
+              {t('auth.registerButton')}
+            </Link>
+          </p>
         </div>
       </div>
     </div>
