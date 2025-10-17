@@ -101,3 +101,74 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: |
+  The user has a P&L application where COGS expenses are displayed in the expense breakdown ($14,231.71) 
+  but are not being included in the main COGS calculation formula, showing $0.00 instead. The issue is that 
+  the user created a category named "COGS" but it was not marked with the is_cogs=True flag in the database.
+
+backend:
+  - task: "Fix COGS calculation to include all COGS categories"
+    implemented: true
+    working: "unknown"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "unknown"
+        agent: "main"
+        comment: |
+          Fixed the issue by updating the database to mark the "COGS" category with is_cogs=True.
+          The category was present but not properly flagged, causing it to be excluded from the 
+          total_cogs calculation while still appearing in the expense breakdown.
+          Also improved the debug endpoint to include bank transaction COGS analysis.
+
+frontend:
+  - task: "Dashboard displays COGS correctly"
+    implemented: true
+    working: "unknown"
+    file: "/app/frontend/src/pages/DashboardPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "unknown"
+        agent: "main"
+        comment: "No frontend changes needed. Frontend correctly displays total_cogs from backend API."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Fix COGS calculation to include all COGS categories"
+    - "Dashboard displays COGS correctly"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      I've identified and fixed the root cause of the COGS calculation bug:
+      
+      PROBLEM: User created a custom category named "COGS" but it wasn't marked with is_cogs=True flag
+      SOLUTION: Updated the database to set is_cogs=True for the "COGS" category
+      
+      Changes made:
+      1. Updated /app/backend/server.py debug endpoint to include bank transaction analysis
+      2. Fixed the database by setting is_cogs=True for category "COGS" (ID: 3c915e20-f1f0-4a02-a4d0-33945c167ca8)
+      
+      Testing needed:
+      - Verify dashboard now shows correct COGS total (should match the breakdown amount)
+      - Test with user credentials to ensure calculations are correct
+      - Verify the formula display shows proper amounts
+      
+      User info for testing:
+      - Main user_id: eb07bfcf-7a73-4d30-b1af-0e020a31ec4a
+      - COGS category has $34,739.98 total (may vary with date filters)
+      - Test user email: test_user_200146@test.com
