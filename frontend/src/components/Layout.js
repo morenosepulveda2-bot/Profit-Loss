@@ -2,7 +2,7 @@ import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
-import { LayoutDashboard, TrendingUp, TrendingDown, FolderOpen, FileText, Building2, Users, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, TrendingDown, FolderOpen, FileText, Building2, ShoppingCart, Users, LogOut, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import LanguageSwitcher from './LanguageSwitcher';
 
@@ -19,6 +19,7 @@ export default function Layout() {
     { name: t('nav.categories'), path: '/categories', icon: FolderOpen, permission: 'view_categories' },
     { name: t('nav.reports'), path: '/reports', icon: FileText, permission: 'view_reports' },
     { name: t('nav.bankReconciliation'), path: '/bank-reconciliation', icon: Building2, permission: 'view_bank_reconciliation' },
+    { name: t('nav.purchaseOrders'), path: '/purchase-orders', icon: ShoppingCart, permission: 'view_purchase_orders' },
     { name: t('nav.users'), path: '/users', icon: Users, permission: 'manage_users' },
   ];
 
