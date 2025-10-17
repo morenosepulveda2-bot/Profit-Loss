@@ -83,6 +83,7 @@ class Category(BaseModel):
 class CategoryCreate(BaseModel):
     name: str
     type: str
+    is_cogs: Optional[bool] = False
 
 class Sale(BaseModel):
     model_config = ConfigDict(extra="ignore")
