@@ -460,7 +460,8 @@ async def get_dashboard_summary(
     )
     
     # Calculate metrics
-    cogs_percentage = (total_income / total_cogs * 100) if total_cogs > 0 else 0
+    # % COGS = (Gastos COGS / Ingresos Sales) × 100
+    cogs_percentage = (total_cogs / total_income * 100) if total_income > 0 else 0
     gross_profit = total_income - total_cogs
     gross_margin = (gross_profit / total_income * 100) if total_income > 0 else 0
     
