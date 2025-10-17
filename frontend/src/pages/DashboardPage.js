@@ -142,9 +142,9 @@ export default function DashboardPage() {
               <p className="text-sm text-slate-600 mb-2">COGS (Costo de Ventas)</p>
               <p className="text-2xl font-bold text-orange-600">${summary.total_cogs.toFixed(2)}</p>
               <div className="mt-2 h-2 bg-orange-100 rounded-full overflow-hidden">
-                <div className="h-full bg-orange-500" style={{ width: `${Math.min(summary.cogs_percentage, 100)}%` }}></div>
+                <div className="h-full bg-orange-500" style={{ width: `${summary.cogs_percentage}%` }}></div>
               </div>
-              <p className="text-xs text-slate-500 mt-1">Ratio: {summary.cogs_percentage.toFixed(1)}%</p>
+              <p className="text-xs text-slate-500 mt-1">{summary.cogs_percentage.toFixed(1)}% de ventas</p>
             </div>
             
             <div className="bg-white rounded-lg p-4 shadow-sm">
