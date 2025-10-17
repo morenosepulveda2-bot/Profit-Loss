@@ -605,10 +605,22 @@ async def get_dashboard_summary(
         cat_name = cat_map.get(sale["category_id"], "Unknown")
         income_by_category[cat_name] += sale["amount"]
     
+    # Add bank transactions to income by category
+    for trans in bank_transactions:
+        if trans["type"] == "credit" and trans.get("category_id"):
+            cat_name = cat_map.get(trans["category_id"], "Transacciones Bancarias")
+            income_by_category[cat_name] += trans["amount"]
+    
     expenses_by_category = defaultdict(float)
     for expense in expenses:
         cat_name = cat_map.get(expense["category_id"], "Unknown")
         expenses_by_category[cat_name] += expense["amount"]
+    
+    # Add bank transactions to expenses by category
+    for trans in bank_transactions:
+        if trans["type"] == "debit" and trans.get("category_id"):
+            cat_name = cat_map.get(trans["category_id"], "Transacciones Bancarias")
+            expenses_by_category[cat_name] += trans["amount"]
     
     # Group by payment method
     sales_by_payment = defaultdict(float)
