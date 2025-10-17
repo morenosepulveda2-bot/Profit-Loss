@@ -89,6 +89,7 @@ function App() {
             <Route path="expenses" element={<ExpensesPage />} />
             <Route path="categories" element={<CategoriesPage />} />
             <Route path="reports" element={<ReportsPage />} />
+            <Route path="bank-reconciliation" element={<BankReconciliationPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
