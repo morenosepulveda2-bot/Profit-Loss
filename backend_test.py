@@ -344,12 +344,12 @@ class ProfitLossAPITester:
         
         if response and response.status_code == 200:
             summary = response.json()
-            required_fields = ['total_income', 'total_expenses', 'net_profit', 'income_by_category', 'expenses_by_category']
+            required_fields = ['total_income', 'total_expenses', 'net_profit', 'total_cogs', 'cogs_percentage', 'gross_profit', 'gross_margin', 'income_by_category', 'expenses_by_category']
             
             if all(field in summary for field in required_fields):
                 self.log_result("Dashboard Summary", True, 
-                    f"Income: ${summary['total_income']}, Expenses: ${summary['total_expenses']}, Profit: ${summary['net_profit']}")
-                return True
+                    f"Income: ${summary['total_income']}, Expenses: ${summary['total_expenses']}, COGS: ${summary['total_cogs']}, Profit: ${summary['net_profit']}")
+                return summary
             else:
                 missing_fields = [field for field in required_fields if field not in summary]
                 self.log_result("Dashboard Summary", False, f"Missing fields: {missing_fields}")
