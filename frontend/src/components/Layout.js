@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, TrendingUp, TrendingDown, FolderOpen, FileText, LogOut } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, TrendingDown, FolderOpen, FileText, Building2, LogOut } from 'lucide-react';
 
 export default function Layout({ user, onLogout }) {
   const location = useLocation();
