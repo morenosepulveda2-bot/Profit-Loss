@@ -764,12 +764,60 @@ async def create_bank_transaction(transaction_data: BankTransactionCreate, curre
     await db.bank_transactions.insert_one(transaction.model_dump())
     return transaction
 
+@api_router.put("/bank-transactions/{transaction_id}")
+async def update_bank_transaction(
+    transaction_id: str,
+    transaction_data: BankTransactionUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    existing = await db.bank_transactions.find_one({"id": transaction_id, "user_id": current_user["id"]})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    update_data = {k: v for k, v in transaction_data.model_dump().items() if v is not None}
+    
+    if update_data:
+        await db.bank_transactions.update_one(
+            {"id": transaction_id, "user_id": current_user["id"]},
+            {"$set": update_data}
+        )
+    
+    updated = await db.bank_transactions.find_one({"id": transaction_id}, {"_id": 0})
+    return updated
+
 @api_router.delete("/bank-transactions/{transaction_id}")
 async def delete_bank_transaction(transaction_id: str, current_user: dict = Depends(get_current_user)):
     result = await db.bank_transactions.delete_one({"id": transaction_id, "user_id": current_user["id"]})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Transaction not found")
     return {"message": "Transaction deleted successfully"}
+
+@api_router.post("/bank-transactions/{transaction_id}/validate")
+async def validate_bank_transaction(
+    transaction_id: str,
+    transaction_type: str,
+    category_id: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Validate and categorize a bank transaction"""
+    transaction = await db.bank_transactions.find_one({"id": transaction_id, "user_id": current_user["id"]})
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    update_data = {
+        "type": transaction_type,
+        "validated": True
+    }
+    
+    if category_id:
+        update_data["category_id"] = category_id
+    
+    await db.bank_transactions.update_one(
+        {"id": transaction_id},
+        {"$set": update_data}
+    )
+    
+    return {"message": "Transaction validated successfully"}
 
 # Match check with bank transaction
 @api_router.post("/bank-transactions/{transaction_id}/match-check/{check_id}")
