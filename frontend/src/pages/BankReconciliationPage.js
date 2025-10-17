@@ -155,11 +155,50 @@ export default function BankReconciliationPage() {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
-      toast.success(response.data.message);
+      if (response.data.transactions_count === 0) {
+        toast.warning(
+          'No se detectaron transacciones automáticamente. Puedes agregarlas manualmente en la pestaña "Transacciones Bancarias".',
+          { duration: 6000 }
+        );
+      } else {
+        toast.success(response.data.message);
+      }
+      
       setUploadDialogOpen(false);
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Error al subir PDF');
+    }
+  };
+
+  const handleExtractText = async () => {
+    const fileInput = document.getElementById('pdf-upload');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+      toast.error('Selecciona un archivo PDF primero');
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await axios.post(`${API}/bank-statements/extract-text`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      // Show extracted text in a modal or download
+      const blob = new Blob([response.data.text], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${file.name}_extracted_text.txt`;
+      a.click();
+      
+      toast.success('Texto extraído. Revisa el archivo descargado y agrega las transacciones manualmente.');
+    } catch (error) {
+      toast.error('Error al extraer texto del PDF');
     }
   };
 
