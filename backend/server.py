@@ -1858,6 +1858,411 @@ async def delete_user(user_id: str, current_user: dict = Depends(require_admin))
     
     return {"message": "User deleted successfully"}
 
+
+
+# ============ Purchase Order Routes ============
+
+@api_router.get("/purchase-orders", response_model=List[Dict[str, Any]])
+async def get_purchase_orders(
+    status: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all purchase orders for current user"""
+    query = {"user_id": current_user["id"]}
+    if status:
+        query["status"] = status
+    
+    pos = await db.purchase_orders.find(query, {"_id": 0}).to_list(1000)
+    return pos
+
+@api_router.get("/purchase-orders/{po_id}", response_model=Dict[str, Any])
+async def get_purchase_order(po_id: str, current_user: dict = Depends(get_current_user)):
+    """Get specific purchase order"""
+    po = await db.purchase_orders.find_one({"id": po_id, "user_id": current_user["id"]}, {"_id": 0})
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+    
+    # Get linked details
+    linked_data = {
+        "expenses": [],
+        "transactions": [],
+        "checks": []
+    }
+    
+    if po.get("linked_expenses"):
+        expenses = await db.expenses.find({"id": {"$in": po["linked_expenses"]}}, {"_id": 0}).to_list(100)
+        linked_data["expenses"] = expenses
+    
+    if po.get("linked_transactions"):
+        transactions = await db.bank_transactions.find({"id": {"$in": po["linked_transactions"]}}, {"_id": 0}).to_list(100)
+        linked_data["transactions"] = transactions
+    
+    if po.get("linked_checks"):
+        checks = await db.checks.find({"id": {"$in": po["linked_checks"]}}, {"_id": 0}).to_list(100)
+        linked_data["checks"] = checks
+    
+    po["linked_data"] = linked_data
+    return po
+
+@api_router.post("/purchase-orders", response_model=Dict[str, Any])
+async def create_purchase_order(po_data: PurchaseOrderCreate, current_user: dict = Depends(get_current_user)):
+    """Create new purchase order"""
+    # Check if PO number already exists
+    existing = await db.purchase_orders.find_one({"user_id": current_user["id"], "po_number": po_data.po_number})
+    if existing:
+        raise HTTPException(status_code=400, detail="Purchase order number already exists")
+    
+    # Calculate totals
+    subtotal = sum(item.total for item in po_data.items)
+    total = subtotal + po_data.tax
+    
+    po = PurchaseOrder(
+        user_id=current_user["id"],
+        po_number=po_data.po_number,
+        supplier=po_data.supplier,
+        date_created=po_data.date_created,
+        date_expected=po_data.date_expected,
+        items=[item.model_dump() for item in po_data.items],
+        subtotal=subtotal,
+        tax=po_data.tax,
+        total=total,
+        notes=po_data.notes,
+        status=PurchaseOrderStatus.PENDING
+    )
+    
+    await db.purchase_orders.insert_one(po.model_dump())
+    return po.model_dump()
+
+@api_router.put("/purchase-orders/{po_id}", response_model=Dict[str, Any])
+async def update_purchase_order(
+    po_id: str,
+    po_data: PurchaseOrderUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update purchase order"""
+    po = await db.purchase_orders.find_one({"id": po_id, "user_id": current_user["id"]}, {"_id": 0})
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+    
+    update_data = {}
+    if po_data.supplier:
+        update_data["supplier"] = po_data.supplier
+    if po_data.date_expected:
+        update_data["date_expected"] = po_data.date_expected
+    if po_data.notes is not None:
+        update_data["notes"] = po_data.notes
+    if po_data.status:
+        update_data["status"] = po_data.status
+    if po_data.tax is not None:
+        update_data["tax"] = po_data.tax
+    
+    # Recalculate totals if items changed
+    if po_data.items:
+        items_dict = [item.model_dump() for item in po_data.items]
+        subtotal = sum(item["total"] for item in items_dict)
+        tax = po_data.tax if po_data.tax is not None else po.get("tax", 0)
+        total = subtotal + tax
+        
+        update_data["items"] = items_dict
+        update_data["subtotal"] = subtotal
+        update_data["total"] = total
+    
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No data to update")
+    
+    await db.purchase_orders.update_one({"id": po_id}, {"$set": update_data})
+    
+    updated_po = await db.purchase_orders.find_one({"id": po_id}, {"_id": 0})
+    return updated_po
+
+@api_router.delete("/purchase-orders/{po_id}")
+async def delete_purchase_order(po_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete purchase order"""
+    po = await db.purchase_orders.find_one({"id": po_id, "user_id": current_user["id"]})
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+    
+    # Check if has linked items
+    if po.get("linked_expenses") or po.get("linked_transactions") or po.get("linked_checks"):
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete purchase order with linked expenses, transactions or checks. Unlink them first."
+        )
+    
+    await db.purchase_orders.delete_one({"id": po_id})
+    return {"message": "Purchase order deleted successfully"}
+
+# ============ Purchase Order Reconciliation Routes ============
+
+@api_router.post("/purchase-orders/{po_id}/link-expense")
+async def link_expense_to_po(
+    po_id: str,
+    link_data: LinkToPurchaseOrder,
+    current_user: dict = Depends(get_current_user)
+):
+    """Link an expense to a purchase order"""
+    # Get PO
+    po = await db.purchase_orders.find_one({"id": po_id, "user_id": current_user["id"]}, {"_id": 0})
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+    
+    # Get expense
+    expense = await db.expenses.find_one({"id": link_data.purchase_order_id, "user_id": current_user["id"]}, {"_id": 0})
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    
+    # Check if already linked
+    if link_data.purchase_order_id in po.get("linked_expenses", []):
+        raise HTTPException(status_code=400, detail="Expense already linked to this purchase order")
+    
+    # Calculate amount to apply
+    amount_to_apply = link_data.amount if link_data.amount else expense["amount"]
+    new_amount_paid = po.get("amount_paid", 0) + amount_to_apply
+    
+    # Check if overpaying
+    if new_amount_paid > po["total"]:
+        raise HTTPException(status_code=400, detail="Payment amount exceeds purchase order total")
+    
+    # Update PO
+    linked_expenses = po.get("linked_expenses", [])
+    linked_expenses.append(link_data.purchase_order_id)
+    
+    # Determine new status
+    new_status = po["status"]
+    if new_amount_paid >= po["total"]:
+        new_status = PurchaseOrderStatus.PAID
+    elif new_amount_paid > 0:
+        new_status = PurchaseOrderStatus.PARTIALLY_PAID
+    
+    await db.purchase_orders.update_one(
+        {"id": po_id},
+        {
+            "$set": {
+                "linked_expenses": linked_expenses,
+                "amount_paid": new_amount_paid,
+                "status": new_status
+            }
+        }
+    )
+    
+    # Link expense to PO
+    await db.expenses.update_one(
+        {"id": link_data.purchase_order_id},
+        {"$set": {"purchase_order_id": po_id}}
+    )
+    
+    return {"message": "Expense linked successfully", "amount_paid": new_amount_paid, "status": new_status}
+
+@api_router.post("/purchase-orders/{po_id}/link-transaction")
+async def link_transaction_to_po(
+    po_id: str,
+    link_data: LinkToPurchaseOrder,
+    current_user: dict = Depends(get_current_user)
+):
+    """Link a bank transaction to a purchase order"""
+    # Get PO
+    po = await db.purchase_orders.find_one({"id": po_id, "user_id": current_user["id"]}, {"_id": 0})
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+    
+    # Get transaction
+    transaction = await db.bank_transactions.find_one(
+        {"id": link_data.purchase_order_id, "user_id": current_user["id"]},
+        {"_id": 0}
+    )
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    # Check if already linked
+    if link_data.purchase_order_id in po.get("linked_transactions", []):
+        raise HTTPException(status_code=400, detail="Transaction already linked to this purchase order")
+    
+    # Calculate amount to apply
+    amount_to_apply = link_data.amount if link_data.amount else transaction["amount"]
+    new_amount_paid = po.get("amount_paid", 0) + amount_to_apply
+    
+    # Check if overpaying
+    if new_amount_paid > po["total"]:
+        raise HTTPException(status_code=400, detail="Payment amount exceeds purchase order total")
+    
+    # Update PO
+    linked_transactions = po.get("linked_transactions", [])
+    linked_transactions.append(link_data.purchase_order_id)
+    
+    # Determine new status
+    new_status = po["status"]
+    if new_amount_paid >= po["total"]:
+        new_status = PurchaseOrderStatus.PAID
+    elif new_amount_paid > 0:
+        new_status = PurchaseOrderStatus.PARTIALLY_PAID
+    
+    await db.purchase_orders.update_one(
+        {"id": po_id},
+        {
+            "$set": {
+                "linked_transactions": linked_transactions,
+                "amount_paid": new_amount_paid,
+                "status": new_status
+            }
+        }
+    )
+    
+    # Link transaction to PO
+    await db.bank_transactions.update_one(
+        {"id": link_data.purchase_order_id},
+        {"$set": {"purchase_order_id": po_id}}
+    )
+    
+    return {"message": "Transaction linked successfully", "amount_paid": new_amount_paid, "status": new_status}
+
+@api_router.post("/purchase-orders/{po_id}/link-check")
+async def link_check_to_po(
+    po_id: str,
+    link_data: LinkToPurchaseOrder,
+    current_user: dict = Depends(get_current_user)
+):
+    """Link a check to a purchase order"""
+    # Get PO
+    po = await db.purchase_orders.find_one({"id": po_id, "user_id": current_user["id"]}, {"_id": 0})
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+    
+    # Get check
+    check = await db.checks.find_one({"id": link_data.purchase_order_id, "user_id": current_user["id"]}, {"_id": 0})
+    if not check:
+        raise HTTPException(status_code=404, detail="Check not found")
+    
+    # Check if already linked
+    if link_data.purchase_order_id in po.get("linked_checks", []):
+        raise HTTPException(status_code=400, detail="Check already linked to this purchase order")
+    
+    # Calculate amount to apply
+    amount_to_apply = link_data.amount if link_data.amount else check["amount"]
+    new_amount_paid = po.get("amount_paid", 0) + amount_to_apply
+    
+    # Check if overpaying
+    if new_amount_paid > po["total"]:
+        raise HTTPException(status_code=400, detail="Payment amount exceeds purchase order total")
+    
+    # Update PO
+    linked_checks = po.get("linked_checks", [])
+    linked_checks.append(link_data.purchase_order_id)
+    
+    # Determine new status
+    new_status = po["status"]
+    if new_amount_paid >= po["total"]:
+        new_status = PurchaseOrderStatus.PAID
+    elif new_amount_paid > 0:
+        new_status = PurchaseOrderStatus.PARTIALLY_PAID
+    
+    await db.purchase_orders.update_one(
+        {"id": po_id},
+        {
+            "$set": {
+                "linked_checks": linked_checks,
+                "amount_paid": new_amount_paid,
+                "status": new_status
+            }
+        }
+    )
+    
+    # Link check to PO
+    await db.checks.update_one(
+        {"id": link_data.purchase_order_id},
+        {"$set": {"purchase_order_id": po_id}}
+    )
+    
+    return {"message": "Check linked successfully", "amount_paid": new_amount_paid, "status": new_status}
+
+@api_router.post("/purchase-orders/{po_id}/unlink-expense/{expense_id}")
+async def unlink_expense_from_po(po_id: str, expense_id: str, current_user: dict = Depends(get_current_user)):
+    """Unlink an expense from a purchase order"""
+    po = await db.purchase_orders.find_one({"id": po_id, "user_id": current_user["id"]}, {"_id": 0})
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+    
+    expense = await db.expenses.find_one({"id": expense_id, "user_id": current_user["id"]}, {"_id": 0})
+    if not expense:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    
+    # Remove from linked list
+    linked_expenses = po.get("linked_expenses", [])
+    if expense_id not in linked_expenses:
+        raise HTTPException(status_code=400, detail="Expense not linked to this purchase order")
+    
+    linked_expenses.remove(expense_id)
+    new_amount_paid = po.get("amount_paid", 0) - expense["amount"]
+    
+    # Update status
+    new_status = PurchaseOrderStatus.PENDING if new_amount_paid <= 0 else PurchaseOrderStatus.PARTIALLY_PAID
+    
+    await db.purchase_orders.update_one(
+        {"id": po_id},
+        {"$set": {"linked_expenses": linked_expenses, "amount_paid": max(0, new_amount_paid), "status": new_status}}
+    )
+    
+    await db.expenses.update_one({"id": expense_id}, {"$unset": {"purchase_order_id": ""}})
+    
+    return {"message": "Expense unlinked successfully"}
+
+@api_router.post("/purchase-orders/{po_id}/unlink-transaction/{transaction_id}")
+async def unlink_transaction_from_po(po_id: str, transaction_id: str, current_user: dict = Depends(get_current_user)):
+    """Unlink a transaction from a purchase order"""
+    po = await db.purchase_orders.find_one({"id": po_id, "user_id": current_user["id"]}, {"_id": 0})
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+    
+    transaction = await db.bank_transactions.find_one({"id": transaction_id, "user_id": current_user["id"]}, {"_id": 0})
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    linked_transactions = po.get("linked_transactions", [])
+    if transaction_id not in linked_transactions:
+        raise HTTPException(status_code=400, detail="Transaction not linked to this purchase order")
+    
+    linked_transactions.remove(transaction_id)
+    new_amount_paid = po.get("amount_paid", 0) - transaction["amount"]
+    
+    new_status = PurchaseOrderStatus.PENDING if new_amount_paid <= 0 else PurchaseOrderStatus.PARTIALLY_PAID
+    
+    await db.purchase_orders.update_one(
+        {"id": po_id},
+        {"$set": {"linked_transactions": linked_transactions, "amount_paid": max(0, new_amount_paid), "status": new_status}}
+    )
+    
+    await db.bank_transactions.update_one({"id": transaction_id}, {"$unset": {"purchase_order_id": ""}})
+    
+    return {"message": "Transaction unlinked successfully"}
+
+@api_router.post("/purchase-orders/{po_id}/unlink-check/{check_id}")
+async def unlink_check_from_po(po_id: str, check_id: str, current_user: dict = Depends(get_current_user)):
+    """Unlink a check from a purchase order"""
+    po = await db.purchase_orders.find_one({"id": po_id, "user_id": current_user["id"]}, {"_id": 0})
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+    
+    check = await db.checks.find_one({"id": check_id, "user_id": current_user["id"]}, {"_id": 0})
+    if not check:
+        raise HTTPException(status_code=404, detail="Check not found")
+    
+    linked_checks = po.get("linked_checks", [])
+    if check_id not in linked_checks:
+        raise HTTPException(status_code=400, detail="Check not linked to this purchase order")
+    
+    linked_checks.remove(check_id)
+    new_amount_paid = po.get("amount_paid", 0) - check["amount"]
+    
+    new_status = PurchaseOrderStatus.PENDING if new_amount_paid <= 0 else PurchaseOrderStatus.PARTIALLY_PAID
+    
+    await db.purchase_orders.update_one(
+        {"id": po_id},
+        {"$set": {"linked_checks": linked_checks, "amount_paid": max(0, new_amount_paid), "status": new_status}}
+    )
+    
+    await db.checks.update_one({"id": check_id}, {"$unset": {"purchase_order_id": ""}})
+    
+    return {"message": "Check unlinked successfully"}
+
 # ============ User Profile Routes ============
 
 @api_router.get("/profile/permissions")
