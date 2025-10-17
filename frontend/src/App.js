@@ -51,6 +51,10 @@ function AppRoutes() {
           element={user ? <Navigate to="/" /> : <LoginPage />}
         />
         <Route
+          path="/set-password"
+          element={<SetPasswordPage />}
+        />
+        <Route
           path="/register"
           element={user ? <Navigate to="/" /> : <RegisterPage />}
         />
