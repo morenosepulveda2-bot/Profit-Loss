@@ -15,6 +15,9 @@ from passlib.context import CryptContext
 import pandas as pd
 import io
 from collections import defaultdict
+import pdfplumber
+import re
+from enum import Enum
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
