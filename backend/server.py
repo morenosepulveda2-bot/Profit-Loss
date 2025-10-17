@@ -429,6 +429,27 @@ async def delete_expense(expense_id: str, current_user: dict = Depends(get_curre
 
 # ============ Dashboard & Analytics Routes ============
 
+@api_router.get("/debug/cogs")
+async def debug_cogs(current_user: dict = Depends(get_current_user)):
+    """Debug endpoint to check COGS calculation"""
+    categories = await db.categories.find({"user_id": current_user["id"]}, {"_id": 0}).to_list(1000)
+    expenses = await db.expenses.find({"user_id": current_user["id"]}, {"_id": 0}).to_list(10000)
+    
+    cogs_categories = [cat for cat in categories if cat.get("is_cogs", False)]
+    cogs_category_ids = {cat["id"] for cat in cogs_categories}
+    
+    cogs_expenses = [exp for exp in expenses if exp["category_id"] in cogs_category_ids]
+    total_cogs = sum(exp["amount"] for exp in cogs_expenses)
+    
+    return {
+        "total_categories": len(categories),
+        "cogs_categories": cogs_categories,
+        "cogs_category_ids": list(cogs_category_ids),
+        "total_expenses": len(expenses),
+        "cogs_expenses": cogs_expenses,
+        "total_cogs": total_cogs
+    }
+
 @api_router.get("/dashboard/summary", response_model=DashboardSummary)
 async def get_dashboard_summary(
     start_date: Optional[str] = None,
