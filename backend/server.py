@@ -41,6 +41,8 @@ class Permission(str, Enum):
     VIEW_REPORTS = "view_reports"
     VIEW_BANK_RECONCILIATION = "view_bank_reconciliation"
     MANAGE_BANK_RECONCILIATION = "manage_bank_reconciliation"
+    VIEW_PURCHASE_ORDERS = "view_purchase_orders"
+    MANAGE_PURCHASE_ORDERS = "manage_purchase_orders"
     MANAGE_USERS = "manage_users"
     MANAGE_SETTINGS = "manage_settings"
 
