@@ -305,7 +305,21 @@ export default function BankReconciliationPage() {
                     />
                   </div>
                 </div>
-                <Button type="submit" className="w-full">Subir y Procesar</Button>
+                
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <p className="text-sm text-blue-800 mb-2 font-medium">💡 Nota sobre extracción automática:</p>
+                  <p className="text-xs text-blue-700">
+                    El sistema intentará extraer transacciones automáticamente del PDF. Si no se detectan transacciones, 
+                    puedes descargar el texto extraído para revisarlo o agregar las transacciones manualmente.
+                  </p>
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button type="button" onClick={handleExtractText} variant="outline" className="flex-1">
+                    Ver Texto Extraído
+                  </Button>
+                  <Button type="submit" className="flex-1">Subir y Procesar</Button>
+                </div>
               </form>
             </DialogContent>
           </Dialog>
