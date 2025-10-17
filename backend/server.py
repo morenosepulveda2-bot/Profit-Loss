@@ -1096,8 +1096,12 @@ async def upload_bank_statement(
                             logger.info(f"✓ Transaction #{len(transactions)}: {date_formatted} | {trans_type.upper()} | ${amount} | {description[:50]}")
                             
                         except Exception as parse_error:
-                            logger.warning(f"Error parsing line: {line[:100]} - {str(parse_error)}")
+                            logger.warning(f"✗ Error parsing line {line_num}: {line[:100]} | Error: {str(parse_error)}")
                             continue
+                    else:
+                        # Log lines that didn't match any pattern (only if they look like they might be transactions)
+                        if any(char.isdigit() for char in line) and len(line) > 15:
+                            logger.debug(f"⊘ Line {line_num} didn't match patterns: {line[:80]}")
         
         logger.info(f"Total transactions extracted: {len(transactions)}")
         
