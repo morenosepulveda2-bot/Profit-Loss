@@ -21,14 +21,26 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '../components/ui/dialog';
-import { Pencil, Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
+import { Pencil, Trash2, UserPlus, Copy, CheckCircle, Clock } from 'lucide-react';
 
 export default function UsersPage() {
   const { t } = useTranslation();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [activationLink, setActivationLink] = useState(null);
 
   useEffect(() => {
     fetchUsers();
@@ -46,12 +58,23 @@ export default function UsersPage() {
     }
   };
 
+  const handleInviteUser = async (userData) => {
+    try {
+      const response = await axios.post(`${API}/users/invite`, userData);
+      toast.success(t('users.userAdded'));
+      setActivationLink(response.data.activation_link);
+      fetchUsers();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || t('errors.somethingWentWrong'));
+    }
+  };
+
   const handleUpdateUser = async (userId, data) => {
     try {
       await axios.put(`${API}/users/${userId}`, data);
       toast.success(t('users.userUpdated'));
       fetchUsers();
-      setDialogOpen(false);
+      setEditDialogOpen(false);
       setEditingUser(null);
     } catch (error) {
       toast.error(error.response?.data?.detail || t('errors.somethingWentWrong'));
@@ -59,8 +82,6 @@ export default function UsersPage() {
   };
 
   const handleDeleteUser = async (userId) => {
-    if (!window.confirm('Are you sure you want to delete this user?')) return;
-
     try {
       await axios.delete(`${API}/users/${userId}`);
       toast.success(t('users.userDeleted'));
@@ -68,6 +89,11 @@ export default function UsersPage() {
     } catch (error) {
       toast.error(error.response?.data?.detail || t('errors.somethingWentWrong'));
     }
+  };
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Activation link copied to clipboard!');
   };
 
   const getRoleName = (role) => {
@@ -82,6 +108,24 @@ export default function UsersPage() {
         return t('users.seller');
       default:
         return role;
+    }
+  };
+
+  const getStatusBadge = (user) => {
+    if (user.is_active) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+          <CheckCircle size={12} />
+          Active
+        </span>
+      );
+    } else {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+          <Clock size={12} />
+          Pending
+        </span>
+      );
     }
   };
 
@@ -103,6 +147,33 @@ export default function UsersPage() {
           </h1>
           <p className="text-slate-600">Manage user roles and permissions</p>
         </div>
+        <Dialog open={inviteDialogOpen} onOpenChange={(open) => {
+          setInviteDialogOpen(open);
+          if (!open) setActivationLink(null);
+        }}>
+          <DialogTrigger asChild>
+            <Button className="bg-emerald-600 hover:bg-emerald-700">
+              <UserPlus size={16} className="mr-2" />
+              Invite User
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Invite New User</DialogTitle>
+              <DialogDescription>
+                Create a new user account. They will receive an activation link to set their password.
+              </DialogDescription>
+            </DialogHeader>
+            {activationLink ? (
+              <ActivationLinkDisplay link={activationLink} onCopy={copyToClipboard} onClose={() => {
+                setInviteDialogOpen(false);
+                setActivationLink(null);
+              }} />
+            ) : (
+              <UserInviteForm onSubmit={handleInviteUser} />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Users Table */}
@@ -114,6 +185,7 @@ export default function UsersPage() {
                 <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">{t('users.username')}</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">{t('users.email')}</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">{t('users.role')}</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Status</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">{t('users.language')}</th>
                 <th className="px-6 py-4 text-right text-sm font-semibold text-slate-900">Actions</th>
               </tr>
@@ -128,11 +200,12 @@ export default function UsersPage() {
                       {getRoleName(user.role)}
                     </span>
                   </td>
+                  <td className="px-6 py-4 text-sm">{getStatusBadge(user)}</td>
                   <td className="px-6 py-4 text-sm text-slate-600 uppercase">{user.language || 'en'}</td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2">
-                      <Dialog open={dialogOpen && editingUser?.id === user.id} onOpenChange={(open) => {
-                        setDialogOpen(open);
+                      <Dialog open={editDialogOpen && editingUser?.id === user.id} onOpenChange={(open) => {
+                        setEditDialogOpen(open);
                         if (!open) setEditingUser(null);
                       }}>
                         <DialogTrigger asChild>
@@ -155,7 +228,7 @@ export default function UsersPage() {
                             user={user}
                             onSubmit={(data) => handleUpdateUser(user.id, data)}
                             onCancel={() => {
-                              setDialogOpen(false);
+                              setEditDialogOpen(false);
                               setEditingUser(null);
                             }}
                           />
@@ -176,6 +249,132 @@ export default function UsersPage() {
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function UserInviteForm({ onSubmit }) {
+  const { t } = useTranslation();
+  const [formData, setFormData] = useState({
+    username: '',
+    email: '',
+    role: 'seller',
+    language: 'en',
+  });
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    await onSubmit(formData);
+    setSubmitting(false);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="username">{t('users.username')}</Label>
+        <Input
+          id="username"
+          value={formData.username}
+          onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+          placeholder="Enter full name"
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="email">{t('users.email')}</Label>
+        <Input
+          id="email"
+          type="email"
+          value={formData.email}
+          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+          placeholder="user@example.com"
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="role">{t('users.role')}</Label>
+        <Select
+          value={formData.role}
+          onValueChange={(value) => setFormData({ ...formData, role: value })}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder={t('users.selectRole')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="admin">{t('users.admin')}</SelectItem>
+            <SelectItem value="manager">{t('users.manager')}</SelectItem>
+            <SelectItem value="accountant">{t('users.accountant')}</SelectItem>
+            <SelectItem value="seller">{t('users.seller')}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="language">{t('users.language')}</Label>
+        <Select
+          value={formData.language}
+          onValueChange={(value) => setFormData({ ...formData, language: value })}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select Language" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="en">English</SelectItem>
+            <SelectItem value="es">Español</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="flex justify-end gap-2 pt-4">
+        <Button type="submit" disabled={submitting} className="bg-emerald-600 hover:bg-emerald-700">
+          {submitting ? 'Creating...' : 'Create User & Generate Link'}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function ActivationLinkDisplay({ link, onCopy, onClose }) {
+  return (
+    <div className="space-y-4">
+      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+        <p className="text-sm font-medium text-emerald-900 mb-2">✅ User invited successfully!</p>
+        <p className="text-sm text-emerald-700">Share this activation link with the user to set their password:</p>
+      </div>
+
+      <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+        <Label className="text-xs text-slate-600 mb-2 block">Activation Link (valid for 7 days):</Label>
+        <div className="flex gap-2">
+          <Input
+            value={link}
+            readOnly
+            className="flex-1 font-mono text-sm"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onCopy(link)}
+          >
+            <Copy size={16} />
+          </Button>
+        </div>
+      </div>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <p className="text-sm text-blue-800">
+          <strong>Important:</strong> The user must use this link to set their password before they can log in. The link will expire in 7 days.
+        </p>
+      </div>
+
+      <div className="flex justify-end">
+        <Button onClick={onClose} className="bg-emerald-600 hover:bg-emerald-700">
+          Done
+        </Button>
       </div>
     </div>
   );
