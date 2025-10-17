@@ -679,6 +679,322 @@ async def get_analytics_report(
         "summary": summary
     }
 
+# ============ Bank Reconciliation Routes ============
+
+@api_router.get("/checks", response_model=List[Check])
+async def get_checks(current_user: dict = Depends(get_current_user)):
+    checks = await db.checks.find({" user_id": current_user["id"]}, {"_id": 0}).sort("date_issued", -1).to_list(10000)
+    return checks
+
+@api_router.post("/checks", response_model=Check)
+async def create_check(check_data: CheckCreate, current_user: dict = Depends(get_current_user)):
+    check = Check(
+        user_id=current_user["id"],
+        check_number=check_data.check_number,
+        date_issued=check_data.date_issued,
+        amount=check_data.amount,
+        payee=check_data.payee,
+        description=check_data.description,
+        status=CheckStatus.PENDING
+    )
+    await db.checks.insert_one(check.model_dump())
+    return check
+
+@api_router.put("/checks/{check_id}", response_model=Check)
+async def update_check(check_id: str, check_data: CheckCreate, current_user: dict = Depends(get_current_user)):
+    existing = await db.checks.find_one({"id": check_id, "user_id": current_user["id"]})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Check not found")
+    
+    await db.checks.update_one(
+        {"id": check_id, "user_id": current_user["id"]},
+        {"$set": check_data.model_dump()}
+    )
+    
+    updated = await db.checks.find_one({"id": check_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/checks/{check_id}")
+async def delete_check(check_id: str, current_user: dict = Depends(get_current_user)):
+    result = await db.checks.delete_one({"id": check_id, "user_id": current_user["id"]})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Check not found")
+    return {"message": "Check deleted successfully"}
+
+@api_router.post("/checks/{check_id}/cancel")
+async def cancel_check(check_id: str, current_user: dict = Depends(get_current_user)):
+    check = await db.checks.find_one({"id": check_id, "user_id": current_user["id"]})
+    if not check:
+        raise HTTPException(status_code=404, detail="Check not found")
+    
+    await db.checks.update_one(
+        {"id": check_id},
+        {"$set": {"status": CheckStatus.CANCELLED}}
+    )
+    return {"message": "Check cancelled successfully"}
+
+# Bank Transactions
+@api_router.get("/bank-transactions", response_model=List[BankTransaction])
+async def get_bank_transactions(current_user: dict = Depends(get_current_user)):
+    transactions = await db.bank_transactions.find({"user_id": current_user["id"]}, {"_id": 0}).sort("date", -1).to_list(10000)
+    return transactions
+
+@api_router.post("/bank-transactions", response_model=BankTransaction)
+async def create_bank_transaction(transaction_data: BankTransactionCreate, current_user: dict = Depends(get_current_user)):
+    transaction = BankTransaction(
+        user_id=current_user["id"],
+        statement_id="manual",
+        date=transaction_data.date,
+        description=transaction_data.description,
+        amount=transaction_data.amount,
+        type=transaction_data.type,
+        check_number=transaction_data.check_number
+    )
+    await db.bank_transactions.insert_one(transaction.model_dump())
+    return transaction
+
+@api_router.delete("/bank-transactions/{transaction_id}")
+async def delete_bank_transaction(transaction_id: str, current_user: dict = Depends(get_current_user)):
+    result = await db.bank_transactions.delete_one({"id": transaction_id, "user_id": current_user["id"]})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    return {"message": "Transaction deleted successfully"}
+
+# Match check with bank transaction
+@api_router.post("/bank-transactions/{transaction_id}/match-check/{check_id}")
+async def match_check_with_transaction(
+    transaction_id: str,
+    check_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    # Verify transaction exists
+    transaction = await db.bank_transactions.find_one({"id": transaction_id, "user_id": current_user["id"]})
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    # Verify check exists
+    check = await db.checks.find_one({"id": check_id, "user_id": current_user["id"]})
+    if not check:
+        raise HTTPException(status_code=404, detail="Check not found")
+    
+    # Update transaction
+    await db.bank_transactions.update_one(
+        {"id": transaction_id},
+        {"$set": {"matched_check_id": check_id}}
+    )
+    
+    # Update check
+    await db.checks.update_one(
+        {"id": check_id},
+        {"$set": {
+            "status": CheckStatus.CLEARED,
+            "date_cleared": transaction["date"],
+            "bank_transaction_id": transaction_id
+        }}
+    )
+    
+    return {"message": "Check matched successfully"}
+
+# Automatic matching
+@api_router.post("/bank-reconciliation/auto-match")
+async def auto_match_checks(current_user: dict = Depends(get_current_user)):
+    # Get unmatched transactions
+    transactions = await db.bank_transactions.find({
+        "user_id": current_user["id"],
+        "matched_check_id": None,
+        "type": "debit"
+    }).to_list(10000)
+    
+    # Get pending checks
+    checks = await db.checks.find({
+        "user_id": current_user["id"],
+        "status": CheckStatus.PENDING
+    }).to_list(10000)
+    
+    matched_count = 0
+    for transaction in transactions:
+        for check in checks:
+            # Match by check number or amount + date proximity
+            if transaction.get("check_number") == check["check_number"] or \
+               (abs(transaction["amount"] - check["amount"]) < 0.01 and \
+                abs((datetime.fromisoformat(transaction["date"].replace('Z', '+00:00')) - 
+                     datetime.fromisoformat(check["date_issued"].replace('Z', '+00:00'))).days) <= 7):
+                
+                # Update transaction
+                await db.bank_transactions.update_one(
+                    {"id": transaction["id"]},
+                    {"$set": {"matched_check_id": check["id"]}}
+                )
+                
+                # Update check
+                await db.checks.update_one(
+                    {"id": check["id"]},
+                    {"$set": {
+                        "status": CheckStatus.CLEARED,
+                        "date_cleared": transaction["date"],
+                        "bank_transaction_id": transaction["id"]
+                    }}
+                )
+                
+                matched_count += 1
+                break
+    
+    return {"message": f"Matched {matched_count} checks automatically"}
+
+# Reconciliation report
+@api_router.get("/bank-reconciliation/report", response_model=ReconciliationReport)
+async def get_reconciliation_report(
+    statement_balance: float,
+    current_user: dict = Depends(get_current_user)
+):
+    # Get outstanding checks (pending)
+    outstanding_checks = await db.checks.find({
+        "user_id": current_user["id"],
+        "status": CheckStatus.PENDING
+    }, {"_id": 0}).to_list(10000)
+    
+    outstanding_checks_total = sum(check["amount"] for check in outstanding_checks)
+    
+    # Get deposits in transit (sales not yet in bank)
+    # For now, we'll use recent sales not matched with bank transactions
+    recent_sales = await db.sales.find({
+        "user_id": current_user["id"],
+        "payment_method": {"$in": ["Transferencia", "Cheque"]}
+    }, {"_id": 0}).to_list(10000)
+    
+    bank_transactions = await db.bank_transactions.find({
+        "user_id": current_user["id"],
+        "type": "credit"
+    }, {"_id": 0}).to_list(10000)
+    
+    # Simple matching - deposits not in bank yet
+    deposits_in_transit = []
+    for sale in recent_sales[-20:]:  # Last 20 sales
+        matched = False
+        for trans in bank_transactions:
+            if abs(float(sale["amount"]) - float(trans["amount"])) < 0.01:
+                matched = True
+                break
+        if not matched:
+            deposits_in_transit.append({
+                "date": sale["date"],
+                "amount": sale["amount"],
+                "description": sale.get("description", "Venta")
+            })
+    
+    deposits_in_transit_total = sum(d["amount"] for d in deposits_in_transit)
+    
+    # Calculate reconciled balance
+    # Bank balance + deposits in transit - outstanding checks = Book balance
+    reconciled_balance = statement_balance + deposits_in_transit_total - outstanding_checks_total
+    
+    # Get book balance (from our records)
+    # This would be cash/bank account balance from our books
+    book_balance = statement_balance  # Simplified
+    
+    difference = reconciled_balance - book_balance
+    
+    return ReconciliationReport(
+        statement_balance=statement_balance,
+        book_balance=book_balance,
+        outstanding_checks=outstanding_checks,
+        deposits_in_transit=deposits_in_transit,
+        outstanding_checks_total=outstanding_checks_total,
+        deposits_in_transit_total=deposits_in_transit_total,
+        reconciled_balance=reconciled_balance,
+        difference=difference
+    )
+
+# PDF Upload and parse
+@api_router.post("/bank-statements/upload")
+async def upload_bank_statement(
+    file: UploadFile = File(...),
+    period_start: str = "",
+    period_end: str = "",
+    starting_balance: float = 0,
+    ending_balance: float = 0,
+    current_user: dict = Depends(get_current_user)
+):
+    try:
+        contents = await file.read()
+        
+        # Save PDF temporarily
+        pdf_path = f"/tmp/{file.filename}"
+        with open(pdf_path, "wb") as f:
+            f.write(contents)
+        
+        # Extract text from PDF
+        transactions = []
+        with pdfplumber.open(pdf_path) as pdf:
+            for page in pdf.pages:
+                text = page.extract_text()
+                
+                # Try to parse transactions (this is a basic parser, may need adjustment)
+                lines = text.split('\n')
+                for line in lines:
+                    # Look for patterns like: date amount description
+                    # Example: 12/15/2024 -500.00 CHECK #1234
+                    match = re.search(r'(\d{1,2}/\d{1,2}/\d{4})\s+([-+]?\$?[\d,]+\.?\d*)\s+(.+)', line)
+                    if match:
+                        date_str, amount_str, description = match.groups()
+                        
+                        # Parse amount
+                        amount = float(amount_str.replace('$', '').replace(',', ''))
+                        trans_type = "debit" if amount < 0 else "credit"
+                        amount = abs(amount)
+                        
+                        # Extract check number if present
+                        check_match = re.search(r'CHECK #?(\d+)', description, re.IGNORECASE)
+                        check_number = check_match.group(1) if check_match else None
+                        
+                        # Convert date
+                        try:
+                            date_obj = datetime.strptime(date_str, "%m/%d/%Y")
+                            date_formatted = date_obj.strftime("%Y-%m-%d")
+                        except:
+                            continue
+                        
+                        transaction = BankTransaction(
+                            user_id=current_user["id"],
+                            statement_id="",
+                            date=date_formatted,
+                            description=description.strip(),
+                            amount=amount,
+                            type=trans_type,
+                            check_number=check_number
+                        )
+                        transactions.append(transaction.model_dump())
+        
+        # Create statement record
+        statement = BankStatement(
+            user_id=current_user["id"],
+            filename=file.filename,
+            period_start=period_start,
+            period_end=period_end,
+            starting_balance=starting_balance,
+            ending_balance=ending_balance,
+            transactions_count=len(transactions)
+        )
+        
+        await db.bank_statements.insert_one(statement.model_dump())
+        
+        # Update transactions with statement_id
+        for trans in transactions:
+            trans["statement_id"] = statement.id
+        
+        # Insert transactions
+        if transactions:
+            await db.bank_transactions.insert_many(transactions)
+        
+        return {
+            "message": f"Statement uploaded successfully. Extracted {len(transactions)} transactions",
+            "statement_id": statement.id,
+            "transactions_count": len(transactions)
+        }
+    except Exception as e:
+        logger.error(f"Error uploading bank statement: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Error processing PDF: {str(e)}")
+
 # Include the router in the main app
 app.include_router(api_router)
 
