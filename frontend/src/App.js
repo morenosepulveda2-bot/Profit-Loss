@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import SetPasswordPage from './pages/SetPasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import SalesPage from './pages/SalesPage';
 import ExpensesPage from './pages/ExpensesPage';
