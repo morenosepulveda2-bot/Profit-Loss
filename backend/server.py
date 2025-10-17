@@ -965,24 +965,40 @@ async def upload_bank_statement(
                 
                 # Try multiple patterns for different bank formats
                 lines = text.split('\n')
-                for line in lines:
+                for line_num, line in enumerate(lines):
                     line = line.strip()
-                    if not line:
+                    if not line or len(line) < 10:
                         continue
                     
-                    # Pattern 1: MM/DD/YYYY amount description
-                    match1 = re.search(r'(\d{1,2}/\d{1,2}/\d{2,4})\s+([-+]?\$?[\d,]+\.?\d{2})\s+(.+)', line)
+                    # Skip header lines
+                    if any(header in line.upper() for header in ['DATE', 'DESCRIPTION', 'AMOUNT', 'BALANCE', 'DEPOSITS', 'WITHDRAWALS', 'FECHA', 'DESCRIPCION', 'MONTO']):
+                        continue
                     
-                    # Pattern 2: YYYY-MM-DD amount description
-                    match2 = re.search(r'(\d{4}-\d{1,2}-\d{1,2})\s+([-+]?\$?[\d,]+\.?\d{2})\s+(.+)', line)
+                    # Pattern 1: Date at start, amount with $ or - sign
+                    # Example: 09/15/2024 -500.00 CHECK #1234
+                    match1 = re.search(r'(\d{1,2}/\d{1,2}/\d{2,4})\s+([-+]?\$?\s*[\d,]+\.?\d{2})\s+(.+)', line)
                     
-                    # Pattern 3: DD/MM/YYYY amount description
-                    match3 = re.search(r'(\d{1,2}/\d{1,2}/\d{2,4})\s+(.+?)\s+([-+]?\$?[\d,]+\.?\d{2})', line)
+                    # Pattern 2: Date at start, description, then amount at end
+                    # Example: 09/15/2024 Payment to vendor 500.00
+                    match2 = re.search(r'(\d{1,2}/\d{1,2}/\d{2,4})\s+(.+?)\s+([-+]?\$?\s*[\d,]+\.?\d{2})$', line)
                     
-                    # Pattern 4: Description with amount at end
-                    match4 = re.search(r'(.+?)\s+(\d{1,2}/\d{1,2}/\d{2,4})\s+([-+]?\$?[\d,]+\.?\d{2})', line)
+                    # Pattern 3: Description first, date, then amount
+                    # Example: CHECK #1234 09/15/2024 500.00
+                    match3 = re.search(r'(.+?)\s+(\d{1,2}/\d{1,2}/\d{2,4})\s+([-+]?\$?\s*[\d,]+\.?\d{2})$', line)
                     
-                    match = match1 or match2 or match3 or match4
+                    # Pattern 4: ISO date format
+                    # Example: 2024-09-15 -500.00 Description
+                    match4 = re.search(r'(\d{4}-\d{1,2}-\d{1,2})\s+([-+]?\$?\s*[\d,]+\.?\d{2})\s+(.+)', line)
+                    
+                    # Pattern 5: Two dates in line (transaction date and posting date)
+                    # Example: 09/15/2024 09/16/2024 Description 500.00
+                    match5 = re.search(r'(\d{1,2}/\d{1,2}/\d{2,4})\s+\d{1,2}/\d{1,2}/\d{2,4}\s+(.+?)\s+([-+]?\$?\s*[\d,]+\.?\d{2})$', line)
+                    
+                    # Pattern 6: Amount in middle with separators
+                    # Example: 09/15/2024    -500.00    Description here
+                    match6 = re.search(r'(\d{1,2}/\d{1,2}/\d{2,4})\s+([-+]?\$?\s*[\d,]+\.?\d{2})\s+(.+)', line)
+                    
+                    match = match1 or match2 or match3 or match4 or match5 or match6
                     
                     if match:
                         try:
