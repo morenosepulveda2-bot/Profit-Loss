@@ -1925,6 +1925,14 @@ async def create_purchase_order(po_data: PurchaseOrderCreate, current_user: dict
     if existing:
         raise HTTPException(status_code=400, detail="Purchase order number already exists")
     
+    # Validate check if payment method is check
+    if po_data.payment_method == "check" and po_data.payment_check_id:
+        check = await db.checks.find_one({"id": po_data.payment_check_id, "user_id": current_user["id"]})
+        if not check:
+            raise HTTPException(status_code=404, detail="Check not found")
+        if check.get("purchase_order_id"):
+            raise HTTPException(status_code=400, detail="Check is already linked to another purchase order")
+    
     # Calculate totals
     subtotal = sum(item.total for item in po_data.items)
     total = subtotal + po_data.tax
@@ -1940,11 +1948,35 @@ async def create_purchase_order(po_data: PurchaseOrderCreate, current_user: dict
         tax=po_data.tax,
         total=total,
         notes=po_data.notes,
+        payment_method=po_data.payment_method,
+        payment_check_id=po_data.payment_check_id,
         status=PurchaseOrderStatus.PENDING
     )
     
-    await db.purchase_orders.insert_one(po.model_dump())
-    return po.model_dump()
+    po_dict = po.model_dump()
+    
+    # If check is selected, link it automatically
+    if po_data.payment_method == "check" and po_data.payment_check_id:
+        check = await db.checks.find_one({"id": po_data.payment_check_id, "user_id": current_user["id"]}, {"_id": 0})
+        if check:
+            # Add check to linked_checks
+            po_dict["linked_checks"] = [po_data.payment_check_id]
+            po_dict["amount_paid"] = check["amount"]
+            
+            # Update status based on payment
+            if check["amount"] >= total:
+                po_dict["status"] = PurchaseOrderStatus.PAID
+            elif check["amount"] > 0:
+                po_dict["status"] = PurchaseOrderStatus.PARTIALLY_PAID
+            
+            # Link check to PO
+            await db.checks.update_one(
+                {"id": po_data.payment_check_id},
+                {"$set": {"purchase_order_id": po_dict["id"]}}
+            )
+    
+    await db.purchase_orders.insert_one(po_dict)
+    return po_dict
 
 @api_router.put("/purchase-orders/{po_id}", response_model=Dict[str, Any])
 async def update_purchase_order(
