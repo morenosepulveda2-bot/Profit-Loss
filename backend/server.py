@@ -245,6 +245,9 @@ class PurchaseOrder(BaseModel):
     total: float
     status: str = PurchaseOrderStatus.PENDING
     notes: Optional[str] = None
+    # Método de pago
+    payment_method: Optional[str] = None  # cash, card, transfer, check
+    payment_check_id: Optional[str] = None  # ID del cheque si payment_method = check
     # Conciliaciones
     linked_expenses: List[str] = []  # IDs de expenses relacionados
     linked_transactions: List[str] = []  # IDs de bank transactions relacionados
@@ -260,6 +263,8 @@ class PurchaseOrderCreate(BaseModel):
     items: List[PurchaseOrderItem]
     tax: float = 0
     notes: Optional[str] = None
+    payment_method: Optional[str] = None
+    payment_check_id: Optional[str] = None
 
 class PurchaseOrderUpdate(BaseModel):
     supplier: Optional[str] = None
@@ -268,6 +273,8 @@ class PurchaseOrderUpdate(BaseModel):
     tax: Optional[float] = None
     status: Optional[str] = None
     notes: Optional[str] = None
+    payment_method: Optional[str] = None
+    payment_check_id: Optional[str] = None
 
 class LinkToPurchaseOrder(BaseModel):
     purchase_order_id: str
