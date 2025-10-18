@@ -268,8 +268,34 @@ function PurchaseOrderForm({ po, onSubmit, onCancel }) {
     date_expected: po?.date_expected || '',
     tax: po?.tax || 0,
     notes: po?.notes || '',
+    payment_method: po?.payment_method || '',
+    payment_check_id: po?.payment_check_id || '',
     items: po?.items || [{ id: Date.now().toString(), description: '', quantity: 1, unit_price: 0, total: 0 }],
   });
+  const [availableChecks, setAvailableChecks] = useState([]);
+  const [loadingChecks, setLoadingChecks] = useState(false);
+
+  useEffect(() => {
+    if (formData.payment_method === 'check') {
+      fetchAvailableChecks();
+    }
+  }, [formData.payment_method]);
+
+  const fetchAvailableChecks = async () => {
+    try {
+      setLoadingChecks(true);
+      const response = await axios.get(`${API}/checks`);
+      // Filter out checks already linked to POs (except if editing and it's this PO's check)
+      const filtered = response.data.filter(check => 
+        !check.purchase_order_id || check.id === po?.payment_check_id
+      );
+      setAvailableChecks(filtered);
+    } catch (error) {
+      console.error('Error fetching checks:', error);
+    } finally {
+      setLoadingChecks(false);
+    }
+  };
 
   const addItem = () => {
     setFormData({
