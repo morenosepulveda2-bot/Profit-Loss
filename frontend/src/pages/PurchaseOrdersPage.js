@@ -382,6 +382,61 @@ function PurchaseOrderForm({ po, onSubmit, onCancel }) {
         </div>
       </div>
 
+      {/* Payment Method Section */}
+      <div className="border-t pt-4">
+        <h3 className="text-base font-semibold mb-4">{t('purchaseOrders.paymentMethod')}</h3>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="payment_method">{t('purchaseOrders.paymentMethod')}</Label>
+            <Select
+              value={formData.payment_method}
+              onValueChange={(value) => setFormData({ ...formData, payment_method: value, payment_check_id: '' })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select payment method" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">(None)</SelectItem>
+                <SelectItem value="cash">{t('sales.cash')}</SelectItem>
+                <SelectItem value="card">{t('sales.card')}</SelectItem>
+                <SelectItem value="transfer">{t('sales.transfer')}</SelectItem>
+                <SelectItem value="check">Check</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {formData.payment_method === 'check' && (
+            <div className="space-y-2">
+              <Label htmlFor="payment_check_id">{t('purchaseOrders.paymentCheck')}</Label>
+              {loadingChecks ? (
+                <Input value="Loading checks..." readOnly disabled />
+              ) : (
+                <Select
+                  value={formData.payment_check_id}
+                  onValueChange={(value) => setFormData({ ...formData, payment_check_id: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('purchaseOrders.selectCheck')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableChecks.map(check => (
+                      <SelectItem key={check.id} value={check.id}>
+                        Check #{check.check_number} - {check.payee} - ${check.amount.toFixed(2)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {formData.payment_check_id && (
+                <p className="text-xs text-blue-600 mt-1">
+                  ℹ️ This check will be automatically linked to the PO upon creation
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Items */}
       <div className="space-y-4">
         <div className="flex justify-between items-center">
