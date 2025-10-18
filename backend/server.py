@@ -2000,6 +2000,10 @@ async def update_purchase_order(
         update_data["status"] = po_data.status
     if po_data.tax is not None:
         update_data["tax"] = po_data.tax
+    if po_data.payment_method is not None:
+        update_data["payment_method"] = po_data.payment_method
+    if po_data.payment_check_id is not None:
+        update_data["payment_check_id"] = po_data.payment_check_id
     
     # Recalculate totals if items changed
     if po_data.items:
