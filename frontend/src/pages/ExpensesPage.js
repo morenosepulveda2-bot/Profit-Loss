@@ -8,6 +8,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import FilterPanel from '../components/FilterPanel';
 
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState([]);
@@ -15,6 +16,14 @@ export default function ExpensesPage() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
+  const [filters, setFilters] = useState({
+    date_from: '',
+    date_to: '',
+    category_id: '',
+    min_amount: '',
+    max_amount: '',
+    description: ''
+  });
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     amount: '',
@@ -23,23 +32,63 @@ export default function ExpensesPage() {
   });
 
   useEffect(() => {
-    fetchData();
+    fetchCategories();
   }, []);
 
-  const fetchData = async () => {
+  useEffect(() => {
+    fetchExpenses();
+  }, [filters]);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await axios.get(`${API}/categories`);
+      setCategories(response.data.filter(c => c.type === 'expense'));
+    } catch (error) {
+      toast.error('Error loading categories');
+    }
+  };
+
+  const fetchExpenses = async () => {
     try {
       setLoading(true);
-      const [expensesRes, categoriesRes] = await Promise.all([
-        axios.get(`${API}/expenses`),
-        axios.get(`${API}/categories`)
-      ]);
-      setExpenses(expensesRes.data);
-      setCategories(categoriesRes.data.filter(c => c.type === 'expense'));
+      const params = new URLSearchParams();
+      
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== '' && value !== null && value !== undefined) {
+          params.append(key, value);
+        }
+      });
+
+      const response = await axios.get(`${API}/expenses?${params.toString()}`);
+      setExpenses(response.data);
     } catch (error) {
-      toast.error('Error al cargar datos');
+      toast.error('Error loading expenses');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
+  const handleClearFilters = () => {
+    setFilters({
+      date_from: '',
+      date_to: '',
+      category_id: '',
+      min_amount: '',
+      max_amount: '',
+      description: ''
+    });
+  };
+
+  const fetchData = async () => {
+    await fetchCategories();
+    await fetchExpenses();
   };
 
   const handleSubmit = async (e) => {
