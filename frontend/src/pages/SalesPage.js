@@ -8,6 +8,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import FilterPanel from '../components/FilterPanel';
 import Papa from 'papaparse';
 
 export default function SalesPage() {
@@ -16,6 +17,16 @@ export default function SalesPage() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSale, setEditingSale] = useState(null);
+  const [filters, setFilters] = useState({
+    date_from: '',
+    date_to: '',
+    category_id: '',
+    payment_method: '',
+    source: '',
+    min_amount: '',
+    max_amount: '',
+    description: ''
+  });
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     amount: '',
@@ -25,23 +36,65 @@ export default function SalesPage() {
   });
 
   useEffect(() => {
-    fetchData();
+    fetchCategories();
   }, []);
 
-  const fetchData = async () => {
+  useEffect(() => {
+    fetchSales();
+  }, [filters]);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await axios.get(`${API}/categories`);
+      setCategories(response.data.filter(c => c.type === 'income'));
+    } catch (error) {
+      toast.error('Error loading categories');
+    }
+  };
+
+  const fetchSales = async () => {
     try {
       setLoading(true);
-      const [salesRes, categoriesRes] = await Promise.all([
-        axios.get(`${API}/sales`),
-        axios.get(`${API}/categories`)
-      ]);
-      setSales(salesRes.data);
-      setCategories(categoriesRes.data.filter(c => c.type === 'income'));
+      const params = new URLSearchParams();
+      
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== '' && value !== null && value !== undefined) {
+          params.append(key, value);
+        }
+      });
+
+      const response = await axios.get(`${API}/sales?${params.toString()}`);
+      setSales(response.data);
     } catch (error) {
-      toast.error('Error al cargar datos');
+      toast.error('Error loading sales');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
+  const handleClearFilters = () => {
+    setFilters({
+      date_from: '',
+      date_to: '',
+      category_id: '',
+      payment_method: '',
+      source: '',
+      min_amount: '',
+      max_amount: '',
+      description: ''
+    });
+  };
+
+  const fetchData = async () => {
+    await fetchCategories();
+    await fetchSales();
   };
 
   const handleSubmit = async (e) => {
