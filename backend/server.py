@@ -754,8 +754,47 @@ async def import_csv_sales(file: UploadFile = File(...), current_user: dict = De
 # ============ Expenses Routes ============
 
 @api_router.get("/expenses", response_model=List[Expense])
-async def get_expenses(current_user: dict = Depends(get_current_user)):
-    expenses = await db.expenses.find({"user_id": current_user["id"]}, {"_id": 0}).sort("date", -1).to_list(10000)
+async def get_expenses(
+    current_user: dict = Depends(get_current_user),
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    category_id: Optional[str] = None,
+    min_amount: Optional[float] = None,
+    max_amount: Optional[float] = None,
+    description: Optional[str] = None
+):
+    """Get expenses with optional filters"""
+    query = {"user_id": current_user["id"]}
+    
+    # Date range filter
+    if date_from or date_to:
+        date_filter = {}
+        if date_from:
+            date_filter["$gte"] = date_from
+        if date_to:
+            date_filter["$lte"] = date_to
+        if date_filter:
+            query["date"] = date_filter
+    
+    # Category filter
+    if category_id:
+        query["category_id"] = category_id
+    
+    # Amount range filter
+    if min_amount is not None or max_amount is not None:
+        amount_filter = {}
+        if min_amount is not None:
+            amount_filter["$gte"] = min_amount
+        if max_amount is not None:
+            amount_filter["$lte"] = max_amount
+        if amount_filter:
+            query["amount"] = amount_filter
+    
+    # Description search (case-insensitive)
+    if description:
+        query["description"] = {"$regex": description, "$options": "i"}
+    
+    expenses = await db.expenses.find(query, {"_id": 0}).sort("date", -1).to_list(10000)
     return expenses
 
 @api_router.post("/expenses", response_model=Expense)
