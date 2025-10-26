@@ -680,8 +680,57 @@ async def delete_category(category_id: str, current_user: dict = Depends(get_cur
 # ============ Sales Routes ============
 
 @api_router.get("/sales", response_model=List[Sale])
-async def get_sales(current_user: dict = Depends(get_current_user)):
-    sales = await db.sales.find({"user_id": current_user["id"]}, {"_id": 0}).sort("date", -1).to_list(10000)
+async def get_sales(
+    current_user: dict = Depends(get_current_user),
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    category_id: Optional[str] = None,
+    payment_method: Optional[str] = None,
+    source: Optional[str] = None,
+    min_amount: Optional[float] = None,
+    max_amount: Optional[float] = None,
+    description: Optional[str] = None
+):
+    """Get sales with optional filters"""
+    query = {"user_id": current_user["id"]}
+    
+    # Date range filter
+    if date_from or date_to:
+        date_filter = {}
+        if date_from:
+            date_filter["$gte"] = date_from
+        if date_to:
+            date_filter["$lte"] = date_to
+        if date_filter:
+            query["date"] = date_filter
+    
+    # Category filter
+    if category_id:
+        query["category_id"] = category_id
+    
+    # Payment method filter
+    if payment_method:
+        query["payment_method"] = payment_method
+    
+    # Source filter
+    if source:
+        query["source"] = source
+    
+    # Amount range filter
+    if min_amount is not None or max_amount is not None:
+        amount_filter = {}
+        if min_amount is not None:
+            amount_filter["$gte"] = min_amount
+        if max_amount is not None:
+            amount_filter["$lte"] = max_amount
+        if amount_filter:
+            query["amount"] = amount_filter
+    
+    # Description search (case-insensitive)
+    if description:
+        query["description"] = {"$regex": description, "$options": "i"}
+    
+    sales = await db.sales.find(query, {"_id": 0}).sort("date", -1).to_list(10000)
     return sales
 
 @api_router.post("/sales", response_model=Sale)
