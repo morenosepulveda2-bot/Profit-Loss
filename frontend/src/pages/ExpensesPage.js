@@ -223,6 +223,18 @@ export default function ExpensesPage() {
         </Dialog>
       </div>
 
+
+
+      {/* Filter Panel */}
+      <FilterPanel
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        onClearFilters={handleClearFilters}
+        categories={categories}
+        showPaymentMethod={false}
+        showSource={false}
+      />
+
       {/* Expenses Table */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
