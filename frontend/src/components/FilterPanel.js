@@ -57,14 +57,14 @@ export default function FilterPanel({ filters, onFilterChange, onClearFilters, c
         <div className="space-y-2">
           <Label htmlFor="category" className="text-xs">Category</Label>
           <Select
-            value={filters.category_id || ''}
-            onValueChange={(value) => onFilterChange('category_id', value)}
+            value={filters.category_id || 'all'}
+            onValueChange={(value) => onFilterChange('category_id', value === 'all' ? '' : value)}
           >
             <SelectTrigger className="h-9">
               <SelectValue placeholder="All Categories" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Categories</SelectItem>
+              <SelectItem value="all">All Categories</SelectItem>
               {categories.map(cat => (
                 <SelectItem key={cat.id} value={cat.id}>
                   {cat.name}
@@ -79,14 +79,14 @@ export default function FilterPanel({ filters, onFilterChange, onClearFilters, c
           <div className="space-y-2">
             <Label htmlFor="payment_method" className="text-xs">Payment Method</Label>
             <Select
-              value={filters.payment_method || ''}
-              onValueChange={(value) => onFilterChange('payment_method', value)}
+              value={filters.payment_method || 'all'}
+              onValueChange={(value) => onFilterChange('payment_method', value === 'all' ? '' : value)}
             >
               <SelectTrigger className="h-9">
                 <SelectValue placeholder="All Methods" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Methods</SelectItem>
+                <SelectItem value="all">All Methods</SelectItem>
                 <SelectItem value="cash">{t('sales.cash')}</SelectItem>
                 <SelectItem value="card">{t('sales.card')}</SelectItem>
                 <SelectItem value="transfer">{t('sales.transfer')}</SelectItem>
@@ -101,14 +101,14 @@ export default function FilterPanel({ filters, onFilterChange, onClearFilters, c
           <div className="space-y-2">
             <Label htmlFor="source" className="text-xs">Source</Label>
             <Select
-              value={filters.source || ''}
-              onValueChange={(value) => onFilterChange('source', value)}
+              value={filters.source || 'all'}
+              onValueChange={(value) => onFilterChange('source', value === 'all' ? '' : value)}
             >
               <SelectTrigger className="h-9">
                 <SelectValue placeholder="All Sources" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Sources</SelectItem>
+                <SelectItem value="all">All Sources</SelectItem>
                 <SelectItem value="manual">{t('sales.manual')}</SelectItem>
                 <SelectItem value="csv">{t('sales.csv')}</SelectItem>
                 <SelectItem value="toast">{t('sales.toast')}</SelectItem>
