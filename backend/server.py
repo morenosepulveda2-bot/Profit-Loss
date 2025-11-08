@@ -130,6 +130,7 @@ class User(BaseModel):
     is_active: bool = False  # False until user sets password
     activation_token: Optional[str] = None  # Token for password setup
     activation_token_expires: Optional[str] = None  # Token expiration
+    active_location_id: Optional[str] = None  # Current active location
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 class UserCreate(BaseModel):
@@ -164,6 +165,31 @@ class Token(BaseModel):
     access_token: str
     token_type: str
     user: Dict[str, Any]
+
+# ============ Location Models ============
+class Location(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    name: str
+    address: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    is_active: bool = True
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class LocationCreate(BaseModel):
+    name: str
+    address: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+
+class LocationUpdate(BaseModel):
+    name: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    is_active: Optional[bool] = None
 
 class Category(BaseModel):
     model_config = ConfigDict(extra="ignore")
