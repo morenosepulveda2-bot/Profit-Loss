@@ -195,6 +195,7 @@ class Category(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     user_id: str
+    location_id: Optional[str] = None  # Optional for shared categories
     name: str
     type: str  # "income" or "expense"
     is_predefined: bool = False
